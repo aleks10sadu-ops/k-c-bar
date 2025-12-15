@@ -235,7 +235,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient()
       const { data, error: insertError } = await supabase
         .from('tasks')
-        .insert(taskData)
+        .insert(taskData as never)
         .select()
         .single()
 
@@ -279,7 +279,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient()
       const { error: updateError } = await supabase
         .from('tasks')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updates, updated_at: new Date().toISOString() } as never)
         .eq('id', id)
 
       if (updateError) {

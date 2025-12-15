@@ -99,16 +99,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const isFirstUser = !count || count === 0
 
+        const newUserData = {
+          telegram_id: userData.id,
+          username: userData.username || null,
+          first_name: userData.first_name,
+          last_name: userData.last_name || null,
+          photo_url: userData.photo_url || null,
+          role: (isFirstUser ? 'admin' : 'bartender') as UserRole,
+        }
+
         const { data: newUser, error: insertError } = await supabase
           .from('users')
-          .insert({
-            telegram_id: userData.id,
-            username: userData.username || null,
-            first_name: userData.first_name,
-            last_name: userData.last_name || null,
-            photo_url: userData.photo_url || null,
-            role: (isFirstUser ? 'admin' : 'bartender') as UserRole,
-          })
+          .insert(newUserData as never)
           .select()
           .single()
 
