@@ -365,9 +365,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         description: newTask.description ?? null,
         action_type: newTask.action_type,
         task_type: newTask.task_type ?? null,
-        due_date: newTask.due_date,
+        due_date: newTask.due_date ?? null,
         assigned_to: newTask.assigned_to,
         created_by: user.id,
+        file_url: newTask.file_url ?? null,
+        steps: newTask.steps ?? null,
       }
 
       const { createClient } = await import('@/lib/supabase/client')
