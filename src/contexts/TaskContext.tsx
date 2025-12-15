@@ -1,7 +1,6 @@
 "use client"
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from './AuthContext'
 import type { Task, NewTask, UpdateTask, User } from '@/types/database'
 
@@ -33,6 +32,12 @@ export interface TaskStats {
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined)
+
+// Проверяем наличие Supabase
+const hasSupabase = typeof process !== 'undefined' && 
+                    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                    process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co' &&
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // Демо данные для разработки
 const demoTasks: Task[] = [
@@ -141,10 +146,6 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   
   const { user, isAdmin } = useAuth()
-  
-  // Проверяем наличие Supabase
-  const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                      process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co'
 
   const fetchTasks = useCallback(async () => {
     if (!user) return
@@ -154,6 +155,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
+      const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       let query = supabase.from('tasks').select('*')
 
@@ -178,13 +180,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [user, isAdmin, hasSupabase])
+  }, [user, isAdmin])
 
   const fetchBartenders = useCallback(async () => {
     if (!isAdmin) return
     if (!hasSupabase) return // Используем демо данные
 
     try {
+      const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { data, error: fetchError } = await supabase
         .from('users')
@@ -203,7 +206,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Fetch bartenders error:', err)
     }
-  }, [isAdmin, hasSupabase])
+  }, [isAdmin])
 
   const createTask = useCallback(async (newTask: NewTask): Promise<Task | null> => {
     if (!user) return null
@@ -228,6 +231,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         return demoTask
       }
 
+      const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { data, error: insertError } = await supabase
         .from('tasks')
@@ -260,7 +264,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setError('Ошибка создания задачи')
       return null
     }
-  }, [user, hasSupabase])
+  }, [user])
 
   const updateTask = useCallback(async (id: string, updates: UpdateTask): Promise<boolean> => {
     try {
@@ -271,6 +275,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
       if (!hasSupabase) return true
 
+      const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { error: updateError } = await supabase
         .from('tasks')
@@ -287,7 +292,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setError('Ошибка обновления задачи')
       return false
     }
-  }, [hasSupabase])
+  }, [])
 
   const completeTask = useCallback(async (id: string): Promise<boolean> => {
     return updateTask(id, {
@@ -303,6 +308,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
       if (!hasSupabase) return true
 
+      const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { error: deleteError } = await supabase
         .from('tasks')
@@ -319,7 +325,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setError('Ошибка удаления задачи')
       return false
     }
-  }, [hasSupabase])
+  }, [])
 
   const getTasksForUser = useCallback((userId: string): Task[] => {
     return tasks.filter(t => t.assigned_to === userId)
@@ -425,4 +431,3 @@ export function useTasks() {
   }
   return context
 }
-

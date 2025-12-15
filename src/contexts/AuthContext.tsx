@@ -1,7 +1,6 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { getTelegramUser, getTelegramWebApp, type WebAppUser } from '@/lib/telegram'
 import type { User, UserRole } from '@/types/database'
 
@@ -29,6 +28,12 @@ const demoUser: User = {
   updated_at: new Date().toISOString(),
 }
 
+// Проверяем наличие Supabase в build time
+const hasSupabase = typeof process !== 'undefined' && 
+                    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                    process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co' &&
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [telegramUser, setTelegramUser] = useState<WebAppUser | null>(null)
@@ -53,12 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setTelegramUser(userData)
 
-      // Проверяем наличие Supabase переменных
-      const hasSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                          process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co'
-
+      // Если нет Supabase - используем демо режим
       if (!hasSupabase) {
-        // Демо режим
         console.log('🍸 Bar Tracker запущен в демо-режиме')
         setUser(demoUser)
         
@@ -71,9 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Динамически импортируем Supabase клиент только если он нужен
+      const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
 
-      // Ищем или создаём пользователя в базе
+      // Ищем пользователя в базе
       const { data: existingUser, error: fetchError } = await supabase
         .from('users')
         .select('*')
@@ -90,21 +93,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(existingUser)
       } else {
         // Создаём нового пользователя (первый пользователь = админ)
-        const { data: usersCount } = await supabase
+        const { count } = await supabase
           .from('users')
-          .select('id', { count: 'exact', head: true })
+          .select('*', { count: 'exact', head: true })
 
-        const isFirstUser = !usersCount || usersCount.length === 0
+        const isFirstUser = !count || count === 0
 
         const { data: newUser, error: insertError } = await supabase
           .from('users')
           .insert({
             telegram_id: userData.id,
-            username: userData.username,
+            username: userData.username || null,
             first_name: userData.first_name,
-            last_name: userData.last_name,
-            photo_url: userData.photo_url,
-            role: isFirstUser ? 'admin' : 'bartender',
+            last_name: userData.last_name || null,
+            photo_url: userData.photo_url || null,
+            role: (isFirstUser ? 'admin' : 'bartender') as UserRole,
           })
           .select()
           .single()
@@ -136,17 +139,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const refreshUser = useCallback(async () => {
-    if (!user?.id || user.id === 'demo-user') return
+    if (!user?.id || user.id === 'demo-user' || !hasSupabase) return
 
-    const supabase = createClient()
-    const { data, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      
+      const { data, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
 
-    if (!fetchError && data) {
-      setUser(data)
+      if (!fetchError && data) {
+        setUser(data)
+      }
+    } catch (err) {
+      console.error('Refresh user error:', err)
     }
   }, [user?.id])
 
