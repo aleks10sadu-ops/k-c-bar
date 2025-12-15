@@ -57,11 +57,12 @@ export interface Database {
           action_type: ActionType
           task_type: TaskType | null
           status: TaskStatus
-          due_date: string
+          due_date: string | null
           assigned_to: string
           created_by: string
           completed_at: string | null
           file_url: string | null
+          steps: string[] | null
           created_at: string
           updated_at: string
         }
@@ -72,11 +73,12 @@ export interface Database {
           action_type: ActionType
           task_type?: TaskType | null
           status?: TaskStatus
-          due_date: string
+          due_date?: string | null
           assigned_to: string
           created_by: string
           completed_at?: string | null
           file_url?: string | null
+          steps?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -87,11 +89,12 @@ export interface Database {
           action_type?: ActionType
           task_type?: TaskType | null
           status?: TaskStatus
-          due_date?: string
+          due_date?: string | null
           assigned_to?: string
           created_by?: string
           completed_at?: string | null
           file_url?: string | null
+          steps?: string[] | null
           created_at?: string
           updated_at?: string
         }

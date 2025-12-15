@@ -45,7 +45,7 @@ const demoTasks: Task[] = [
   {
     id: '1',
     title: 'Подготовить барную станцию',
-    description: 'Проверить наличие всех ингредиентов и инструментов',
+    description: null,
     action_type: 'task',
     task_type: 'prepare',
     status: 'pending',
@@ -54,13 +54,14 @@ const demoTasks: Task[] = [
     created_by: 'demo-user',
     completed_at: null,
     file_url: null,
+    steps: ['Проверить лёд', 'Подготовить гарниры', 'Разложить инструменты'],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
     id: '2',
     title: 'Инвентаризация алкоголя',
-    description: 'Пересчитать остатки крепкого алкоголя',
+    description: null,
     action_type: 'task',
     task_type: 'inventory',
     status: 'in_progress',
@@ -69,6 +70,7 @@ const demoTasks: Task[] = [
     created_by: 'demo-user',
     completed_at: null,
     file_url: null,
+    steps: ['Пересчитать виски', 'Пересчитать ром', 'Записать в журнал'],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -84,21 +86,23 @@ const demoTasks: Task[] = [
     created_by: 'demo-user',
     completed_at: new Date(Date.now() - 1800000).toISOString(),
     file_url: null,
+    steps: ['Проверить все сиропы', 'Отметить просроченные'],
     created_at: new Date(Date.now() - 86400000).toISOString(),
     updated_at: new Date(Date.now() - 1800000).toISOString(),
   },
   {
     id: '4',
-    title: 'Новое меню коктейлей',
-    description: 'Ознакомьтесь с обновлённым меню на эту неделю',
+    title: 'Примечание',
+    description: 'Ознакомьтесь с обновлённым меню коктейлей на эту неделю',
     action_type: 'note',
     task_type: null,
     status: 'pending',
-    due_date: new Date(Date.now() + 86400000).toISOString(),
+    due_date: null,
     assigned_to: 'bartender-1',
     created_by: 'demo-user',
     completed_at: null,
     file_url: null,
+    steps: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -150,6 +154,7 @@ function createTaskFromNew(newTask: NewTask, userId: string): Task {
     action_type: newTask.action_type,
     task_type: newTask.task_type ?? null,
     status: (newTask.status ?? 'pending') as TaskStatus,
+    steps: newTask.steps ?? null,
     due_date: newTask.due_date,
     assigned_to: newTask.assigned_to,
     created_by: userId,
@@ -468,6 +473,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     endOfDay.setHours(23, 59, 59, 999)
 
     return tasks.filter(t => {
+      if (!t.due_date) return false
       const taskDate = new Date(t.due_date)
       return taskDate >= startOfDay && taskDate <= endOfDay
     })
@@ -476,6 +482,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const getOverdueTasks = useCallback((): Task[] => {
     const now = new Date()
     return tasks.filter(t => 
+      t.due_date && 
       new Date(t.due_date) < now && 
       t.status !== 'completed'
     )
@@ -490,7 +497,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     const pending = filteredTasks.filter(t => t.status === 'pending')
     const inProgress = filteredTasks.filter(t => t.status === 'in_progress')
     const overdue = filteredTasks.filter(t => 
-      new Date(t.due_date) < new Date() && t.status !== 'completed'
+      t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
     )
 
     // Среднее время выполнения (в минутах)

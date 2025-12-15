@@ -9,9 +9,11 @@ import {
   MessageSquare, 
   StickyNote, 
   ClipboardList,
-  MoreVertical,
   Trash2,
-  Play
+  Play,
+  FileText,
+  ExternalLink,
+  Circle
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -85,7 +87,7 @@ export function TaskCard({
   showAssignee,
   assigneeName
 }: TaskCardProps) {
-  const isOverdue = new Date(task.due_date) < new Date() && task.status !== 'completed'
+  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
   const displayStatus = isOverdue && task.status !== 'completed' ? 'overdue' : task.status
   const statusInfo = statusConfig[displayStatus]
 
@@ -107,6 +109,13 @@ export function TaskCard({
     onStartProgress?.(task.id)
   }
 
+  const handleOpenFile = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (task.file_url) {
+      window.open(task.file_url, '_blank')
+    }
+  }
+
   return (
     <motion.div
       layout
@@ -126,15 +135,24 @@ export function TaskCard({
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            {/* Чекбокс */}
-            <div className="pt-0.5">
-              <Checkbox
-                checked={task.status === 'completed'}
-                onCheckedChange={() => onComplete?.(task.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-              />
-            </div>
+            {/* Чекбокс - только для задач */}
+            {task.action_type === 'task' && (
+              <div className="pt-0.5">
+                <Checkbox
+                  checked={task.status === 'completed'}
+                  onCheckedChange={() => onComplete?.(task.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                />
+              </div>
+            )}
+
+            {/* Иконка для примечаний и чатов */}
+            {task.action_type !== 'task' && (
+              <div className="pt-0.5 text-muted-foreground">
+                {actionTypeIcons[task.action_type]}
+              </div>
+            )}
 
             {/* Контент */}
             <div className="flex-1 min-w-0">
@@ -154,11 +172,42 @@ export function TaskCard({
                   )}
                 </div>
 
-                {/* Иконка типа действия */}
-                <div className="text-muted-foreground">
-                  {actionTypeIcons[task.action_type]}
-                </div>
+                {/* Иконка типа действия для задач */}
+                {task.action_type === 'task' && (
+                  <div className="text-muted-foreground">
+                    {actionTypeIcons[task.action_type]}
+                  </div>
+                )}
               </div>
+
+              {/* Шаги задачи */}
+              {task.steps && task.steps.length > 0 && (
+                <div className="mt-3 space-y-1.5 pl-1">
+                  {task.steps.map((step, index) => (
+                    <div key={index} className="flex items-start gap-2 text-sm">
+                      <Circle className="w-3 h-3 mt-1 text-muted-foreground flex-shrink-0" />
+                      <span className={cn(
+                        "text-muted-foreground",
+                        task.status === 'completed' && "line-through"
+                      )}>
+                        {step}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Прикреплённый файл */}
+              {task.file_url && (
+                <button
+                  onClick={handleOpenFile}
+                  className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                >
+                  <FileText className="w-4 h-4 text-blue-500" />
+                  <span className="text-muted-foreground">Прикреплённый файл</span>
+                  <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                </button>
+              )}
 
               {/* Метаданные */}
               <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -176,12 +225,14 @@ export function TaskCard({
                 )}
 
                 {/* Время */}
-                <span className={cn(
-                  "text-xs",
-                  isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
-                )}>
-                  {getRelativeTime(new Date(task.due_date))}
-                </span>
+                {task.due_date && (
+                  <span className={cn(
+                    "text-xs",
+                    isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
+                  )}>
+                    {getRelativeTime(new Date(task.due_date))}
+                  </span>
+                )}
 
                 {/* Исполнитель */}
                 {showAssignee && assigneeName && (
@@ -192,15 +243,17 @@ export function TaskCard({
               </div>
 
               {/* Точное время */}
-              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                {format(new Date(task.due_date), "d MMM, HH:mm", { locale: ru })}
-              </div>
+              {task.due_date && (
+                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {format(new Date(task.due_date), "d MMM, HH:mm", { locale: ru })}
+                </div>
+              )}
             </div>
 
             {/* Действия */}
             <div className="flex flex-col gap-1">
-              {task.status === 'pending' && onStartProgress && (
+              {task.action_type === 'task' && task.status === 'pending' && onStartProgress && (
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -210,7 +263,7 @@ export function TaskCard({
                   <Play className="w-4 h-4" />
                 </Button>
               )}
-              {task.status !== 'completed' && onComplete && (
+              {task.action_type === 'task' && task.status !== 'completed' && onComplete && (
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -237,4 +290,3 @@ export function TaskCard({
     </motion.div>
   )
 }
-

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, 
@@ -10,7 +10,15 @@ import {
   StickyNote, 
   ClipboardList,
   Paperclip,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  Trash2,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  Send,
+  Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -48,19 +56,19 @@ const actionTypes: { value: ActionType; label: string; icon: React.ReactNode; de
     value: 'task', 
     label: 'Задача', 
     icon: <ClipboardList className="w-5 h-5" />,
-    description: 'Задание для выполнения'
+    description: 'Задание с шагами для выполнения'
   },
   { 
     value: 'chat', 
     label: 'Чат', 
     icon: <MessageSquare className="w-5 h-5" />,
-    description: 'Написать в ЛС'
+    description: 'Написать сообщение в Telegram'
   },
   { 
     value: 'note', 
     label: 'Примечание', 
     icon: <StickyNote className="w-5 h-5" />,
-    description: 'Заметка или файл'
+    description: 'Заметка с файлом'
   },
 ]
 
@@ -70,6 +78,12 @@ const taskTypes: { value: TaskType; label: string; color: string }[] = [
   { value: 'inventory', label: 'Инвентаризация', color: 'bg-purple-500' },
   { value: 'execute', label: 'Выполнить', color: 'bg-amber-500' },
 ]
+
+// Проверяем наличие Supabase
+const hasSupabase = typeof process !== 'undefined' && 
+                    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                    process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co' &&
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export function CreateTaskModal({ 
   isOpen, 
@@ -83,9 +97,16 @@ export function CreateTaskModal({
   const [taskType, setTaskType] = useState<TaskType | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [message, setMessage] = useState('')
+  const [taskSteps, setTaskSteps] = useState<string[]>([''])
   const [assignedTo, setAssignedTo] = useState(preselectedBartender || '')
   const [dueDate, setDueDate] = useState(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const resetForm = () => {
     setStep('type')
@@ -93,9 +114,14 @@ export function CreateTaskModal({
     setTaskType(null)
     setTitle('')
     setDescription('')
+    setMessage('')
+    setTaskSteps([''])
     setAssignedTo(preselectedBartender || '')
     setDueDate(new Date())
     setShowDatePicker(false)
+    setFile(null)
+    setIsUploading(false)
+    setIsSendingMessage(false)
   }
 
   const handleClose = () => {
@@ -109,39 +135,209 @@ export function CreateTaskModal({
     setStep('details')
   }
 
-  const handleSubmit = () => {
-    if (!title.trim() || !assignedTo) return
+  const handleAddStep = () => {
+    hapticFeedback('light')
+    setTaskSteps([...taskSteps, ''])
+  }
 
+  const handleRemoveStep = (index: number) => {
+    hapticFeedback('light')
+    if (taskSteps.length > 1) {
+      setTaskSteps(taskSteps.filter((_, i) => i !== index))
+    }
+  }
+
+  const handleStepChange = (index: number, value: string) => {
+    const newSteps = [...taskSteps]
+    newSteps[index] = value
+    setTaskSteps(newSteps)
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (selectedFile) {
+      setFile(selectedFile)
+    }
+  }
+
+  const uploadFile = async (): Promise<string | null> => {
+    if (!file || !hasSupabase) return null
+    
+    setIsUploading(true)
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`
+      
+      const { data, error } = await supabase.storage
+        .from('attachments')
+        .upload(fileName, file)
+      
+      if (error) {
+        console.error('Upload error:', error)
+        return null
+      }
+      
+      const { data: urlData } = supabase.storage
+        .from('attachments')
+        .getPublicUrl(fileName)
+      
+      return urlData.publicUrl
+    } catch (err) {
+      console.error('Upload failed:', err)
+      return null
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const sendTelegramMessage = async () => {
+    if (!assignedTo || !message.trim()) return false
+    
+    setIsSendingMessage(true)
+    try {
+      const response = await fetch('/api/telegram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bartenderId: assignedTo,
+          message: message.trim(),
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to send message')
+      }
+      
+      return true
+    } catch (err) {
+      console.error('Failed to send Telegram message:', err)
+      return false
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
+  const handleSubmitTask = async () => {
+    if (!title.trim() || !assignedTo) return
+    
     hapticFeedback('success')
+    
+    const filteredSteps = taskSteps.filter(s => s.trim())
     
     const newTask: NewTask = {
       title: title.trim(),
-      description: description.trim() || null,
-      action_type: actionType,
-      task_type: actionType === 'task' ? taskType : null,
+      description: null,
+      action_type: 'task',
+      task_type: taskType,
       due_date: dueDate.toISOString(),
       assigned_to: assignedTo,
-      created_by: '', // Будет заполнено в контексте
+      created_by: '',
+      steps: filteredSteps.length > 0 ? filteredSteps : null,
     }
 
     onSubmit(newTask)
     handleClose()
   }
 
-  const canSubmit = title.trim() && assignedTo
+  const handleSubmitChat = async () => {
+    if (!assignedTo || !message.trim()) return
+    
+    hapticFeedback('medium')
+    
+    const success = await sendTelegramMessage()
+    
+    if (success) {
+      hapticFeedback('success')
+      // Создаём запись в истории
+      const newTask: NewTask = {
+        title: `Сообщение в чат`,
+        description: message.trim(),
+        action_type: 'chat',
+        task_type: null,
+        due_date: null,
+        assigned_to: assignedTo,
+        created_by: '',
+        status: 'completed',
+      }
+      onSubmit(newTask)
+      handleClose()
+    } else {
+      hapticFeedback('error')
+      alert('Не удалось отправить сообщение. Проверьте настройки бота.')
+    }
+  }
+
+  const handleSubmitNote = async () => {
+    if (!assignedTo || !description.trim()) return
+    
+    hapticFeedback('medium')
+    
+    let fileUrl: string | null = null
+    if (file) {
+      fileUrl = await uploadFile()
+    }
+    
+    hapticFeedback('success')
+    
+    const newTask: NewTask = {
+      title: 'Примечание',
+      description: description.trim(),
+      action_type: 'note',
+      task_type: null,
+      due_date: null,
+      assigned_to: assignedTo,
+      created_by: '',
+      file_url: fileUrl,
+    }
+
+    onSubmit(newTask)
+    handleClose()
+  }
+
+  const getModalTitle = () => {
+    if (step === 'type') return 'Выберите тип'
+    if (showDatePicker) return 'Срок выполнения'
+    
+    switch (actionType) {
+      case 'task': return 'Новая задача'
+      case 'chat': return 'Написать в чат'
+      case 'note': return 'Новое примечание'
+      default: return 'Детали'
+    }
+  }
+
+  const selectedBartender = bartenders.find(b => b.id === assignedTo)
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-xl">
-            {step === 'type' && 'Выберите тип'}
-            {step === 'details' && 'Детали'}
-            {step === 'datetime' && 'Дата и время'}
+          <DialogTitle className="text-xl flex items-center gap-2">
+            {step !== 'type' && !showDatePicker && (
+              <button 
+                onClick={() => setStep('type')} 
+                className="p-1 rounded-lg hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            {showDatePicker && (
+              <button 
+                onClick={() => setShowDatePicker(false)} 
+                className="p-1 rounded-lg hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            {getModalTitle()}
           </DialogTitle>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
+          {/* Выбор типа */}
           {step === 'type' && (
             <motion.div
               key="type"
@@ -173,17 +369,18 @@ export function CreateTaskModal({
             </motion.div>
           )}
 
-          {step === 'details' && !showDatePicker && (
+          {/* Форма ЗАДАЧИ */}
+          {step === 'details' && actionType === 'task' && !showDatePicker && (
             <motion.div
-              key="details"
+              key="task-details"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="p-6 pt-4 space-y-4"
+              className="p-6 pt-4 space-y-4 max-h-[60vh] overflow-y-auto"
             >
               {/* Название */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Название</label>
+                <label className="text-sm font-medium">Название задачи</label>
                 <Input
                   placeholder="Что нужно сделать?"
                   value={title}
@@ -192,43 +389,71 @@ export function CreateTaskModal({
                 />
               </div>
 
-              {/* Описание */}
+              {/* Шаги задачи */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Описание (опционально)</label>
-                <Textarea
-                  placeholder="Добавьте детали..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="min-h-[80px]"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Шаги выполнения</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddStep}
+                    className="h-8 px-2 text-amber-600 hover:text-amber-700"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Добавить
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {taskSteps.map((taskStep, index) => (
+                    <div key={index} className="flex gap-2">
+                      <div className="w-6 h-10 flex items-center justify-center text-sm text-muted-foreground font-medium">
+                        {index + 1}.
+                      </div>
+                      <Input
+                        placeholder={`Шаг ${index + 1}`}
+                        value={taskStep}
+                        onChange={(e) => handleStepChange(index, e.target.value)}
+                        className="flex-1"
+                      />
+                      {taskSteps.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveStep(index)}
+                          className="h-10 w-10 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Тип задачи (только для action_type = task) */}
-              {actionType === 'task' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Тип задачи</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {taskTypes.map((type) => (
-                      <button
-                        key={type.value}
-                        onClick={() => {
-                          hapticFeedback('light')
-                          setTaskType(type.value)
-                        }}
-                        className={cn(
-                          "flex items-center gap-2 p-3 rounded-xl border transition-all",
-                          taskType === type.value 
-                            ? "border-primary bg-primary/10" 
-                            : "hover:bg-muted"
-                        )}
-                      >
-                        <div className={cn("w-3 h-3 rounded-full", type.color)} />
-                        <span className="text-sm font-medium">{type.label}</span>
-                      </button>
-                    ))}
-                  </div>
+              {/* Тип задачи */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Тип задачи</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {taskTypes.map((type) => (
+                    <button
+                      key={type.value}
+                      onClick={() => {
+                        hapticFeedback('light')
+                        setTaskType(type.value)
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-xl border transition-all",
+                        taskType === type.value 
+                          ? "border-primary bg-primary/10" 
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      <div className={cn("w-3 h-3 rounded-full", type.color)} />
+                      <span className="text-sm font-medium">{type.label}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {/* Исполнитель */}
               <div className="space-y-2">
@@ -262,22 +487,200 @@ export function CreateTaskModal({
                 </button>
               </div>
 
-              {/* Кнопки */}
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={() => setStep('type')} className="flex-1">
-                  Назад
-                </Button>
+              {/* Кнопка создания */}
+              <div className="pt-4">
                 <Button 
-                  onClick={handleSubmit} 
-                  disabled={!canSubmit}
-                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                  onClick={handleSubmitTask} 
+                  disabled={!title.trim() || !assignedTo}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                 >
-                  Создать
+                  Создать задачу
                 </Button>
               </div>
             </motion.div>
           )}
 
+          {/* Форма ЧАТА */}
+          {step === 'details' && actionType === 'chat' && (
+            <motion.div
+              key="chat-details"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="p-6 pt-4 space-y-4"
+            >
+              {/* Выбор бармена */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Кому отправить</label>
+                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите бармена" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bartenders.map((bartender) => (
+                      <SelectItem key={bartender.id} value={bartender.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          {bartender.first_name} {bartender.last_name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Сообщение */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Сообщение</label>
+                <Textarea
+                  placeholder="Введите сообщение для отправки в Telegram..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="min-h-[150px] resize-none"
+                  autoFocus
+                />
+              </div>
+
+              {selectedBartender && (
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    💬 Сообщение будет отправлено <strong>{selectedBartender.first_name}</strong> в личные сообщения Telegram
+                  </p>
+                </div>
+              )}
+
+              {/* Кнопка отправки */}
+              <div className="pt-4">
+                <Button 
+                  onClick={handleSubmitChat} 
+                  disabled={!message.trim() || !assignedTo || isSendingMessage}
+                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                >
+                  {isSendingMessage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Отправка...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Отправить
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Форма ПРИМЕЧАНИЯ */}
+          {step === 'details' && actionType === 'note' && (
+            <motion.div
+              key="note-details"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="p-6 pt-4 space-y-4"
+            >
+              {/* Описание */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Описание</label>
+                <Textarea
+                  placeholder="Напишите заметку для барменов..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="min-h-[120px] resize-none"
+                  autoFocus
+                />
+              </div>
+
+              {/* Прикрепить файл */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Прикрепить файл</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                />
+                
+                {file ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl border bg-muted/50">
+                    {file.type.startsWith('image/') ? (
+                      <ImageIcon className="w-8 h-8 text-green-500" />
+                    ) : (
+                      <FileText className="w-8 h-8 text-blue-500" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setFile(null)}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                  >
+                    <Upload className="w-5 h-5" />
+                    <span>Выбрать файл</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Назначить */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Назначить</label>
+                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите бармена" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bartenders.map((bartender) => (
+                      <SelectItem key={bartender.id} value={bartender.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          {bartender.first_name} {bartender.last_name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Кнопка создания */}
+              <div className="pt-4">
+                <Button 
+                  onClick={handleSubmitNote} 
+                  disabled={!description.trim() || !assignedTo || isUploading}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Загрузка файла...
+                    </>
+                  ) : (
+                    <>
+                      <StickyNote className="w-4 h-4 mr-2" />
+                      Создать примечание
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* DateTimePicker */}
           {showDatePicker && (
             <motion.div
               key="datepicker"
@@ -297,4 +700,3 @@ export function CreateTaskModal({
     </Dialog>
   )
 }
-
