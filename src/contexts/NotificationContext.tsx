@@ -78,7 +78,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const { data } = await supabase.from('users').select('*')
       
       if (data) {
-        usersMapRef.current = new Map(data.map(u => [u.id, u]))
+        const users = data as User[]
+        usersMapRef.current = new Map(users.map(u => [u.id, u]))
       }
     } catch (err) {
       console.error('Failed to load users for notifications:', err)
