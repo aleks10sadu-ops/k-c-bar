@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   CheckCircle2, 
@@ -16,9 +16,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatsCard } from '@/components/stats/StatsCard'
 import { TaskCard } from '@/components/tasks/TaskCard'
+import { TaskDetailModal } from '@/components/tasks/TaskDetailModal'
 import { useTasks } from '@/contexts/TaskContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import type { Task } from '@/types/database'
 
 interface HomeViewProps {
   onNavigateToTasks: () => void
@@ -27,6 +28,7 @@ interface HomeViewProps {
 export function HomeView({ onNavigateToTasks }: HomeViewProps) {
   const { user, isAdmin } = useAuth()
   const { tasks, bartenders, getStats, completeTask, updateTask, getTasksForDate } = useTasks()
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   const stats = getStats(isAdmin ? undefined : user?.id)
   const todayTasks = getTasksForDate(new Date())
@@ -41,6 +43,26 @@ export function HomeView({ onNavigateToTasks }: HomeViewProps) {
   const getBartenderName = (id: string) => {
     const bartender = bartenders.find(b => b.id === id)
     return bartender ? `${bartender.first_name} ${bartender.last_name?.[0] || ''}` : ''
+  }
+
+  const getCreatorName = (id: string) => {
+    const creator = bartenders.find(b => b.id === id)
+    if (creator) {
+      return `${creator.first_name} ${creator.last_name || ''}`.trim()
+    }
+    if (user?.id === id) {
+      return `${user.first_name} ${user.last_name || ''}`.trim()
+    }
+    return ''
+  }
+
+  const handleUndoComplete = async (id: string) => {
+    await updateTask(id, {
+      status: 'in_progress',
+      completed_at: null,
+      result_text: null,
+      result_file_url: null,
+    })
   }
 
   return (
@@ -138,6 +160,7 @@ export function HomeView({ onNavigateToTasks }: HomeViewProps) {
                       task={task}
                       onComplete={completeTask}
                       onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
+                      onClick={setSelectedTask}
                       showAssignee={isAdmin}
                       assigneeName={getBartenderName(task.assigned_to)}
                     />
@@ -155,6 +178,19 @@ export function HomeView({ onNavigateToTasks }: HomeViewProps) {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Модальное окно деталей задачи */}
+      <TaskDetailModal
+        task={selectedTask}
+        isOpen={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onComplete={completeTask}
+        onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
+        onUndoComplete={handleUndoComplete}
+        assigneeName={selectedTask ? getBartenderName(selectedTask.assigned_to) : undefined}
+        creatorName={selectedTask ? getCreatorName(selectedTask.created_by) : undefined}
+        isAdmin={isAdmin}
+      />
     </div>
   )
 }
