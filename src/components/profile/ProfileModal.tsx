@@ -25,6 +25,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [lastName, setLastName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -38,25 +39,30 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     setIsSaving(true)
     setSaveSuccess(false)
+    setSaveError(null)
 
     try {
       if (hasSupabase) {
         const { createClient } = await import('@/lib/supabase/client')
         const supabase = createClient()
         
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('users')
           .update({
             first_name: firstName.trim(),
             last_name: lastName.trim() || null,
-            updated_at: new Date().toISOString(),
           } as never)
           .eq('id', user.id)
+          .select()
+          .single()
 
         if (error) {
           console.error('Error saving profile:', error)
+          setSaveError('Ошибка сохранения. Попробуйте снова.')
           return
         }
+
+        console.log('Profile updated:', data)
 
         // Обновляем данные пользователя в контексте
         await refreshUser()
@@ -69,6 +75,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       }, 1500)
     } catch (err) {
       console.error('Error updating profile:', err)
+      setSaveError('Произошла ошибка')
     } finally {
       setIsSaving(false)
     }
@@ -175,6 +182,13 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   />
                 </div>
               </div>
+
+              {/* Сообщение об ошибке */}
+              {saveError && (
+                <div className="mt-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+                  {saveError}
+                </div>
+              )}
 
               {/* Кнопка сохранения */}
               <div className="mt-6">
