@@ -308,23 +308,39 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const task = payload.new as Task
             const oldTask = payload.old as Task | null
 
-            // Для бармена - уведомления о новых задачах
+            // Для бармена - уведомления о новых задачах и примечаниях
             if (!isAdmin) {
               if (payload.eventType === 'INSERT' && task.assigned_to === user.id) {
                 const creatorName = getUserName(task.created_by)
-                await createNotification(
-                  user.id,
-                  'task_created',
-                  'Новая задача',
-                  `${creatorName} назначил вам задачу: "${task.title}"`,
-                  task.id,
-                  task.created_by
-                )
+                
+                // Разные уведомления для задач и примечаний
+                if (task.action_type === 'note') {
+                  const notePreview = task.description 
+                    ? (task.description.length > 50 ? task.description.slice(0, 50) + '...' : task.description)
+                    : 'Без описания'
+                  await createNotification(
+                    user.id,
+                    'note_created',
+                    'Новое примечание',
+                    `${creatorName} отправил вам примечание: "${notePreview}"`,
+                    task.id,
+                    task.created_by
+                  )
+                } else {
+                  await createNotification(
+                    user.id,
+                    'task_created',
+                    'Новая задача',
+                    `${creatorName} назначил вам задачу: "${task.title}"`,
+                    task.id,
+                    task.created_by
+                  )
+                }
               }
             } 
-            // Для админа - уведомления о выполненных задачах
+            // Для админа - уведомления о выполненных задачах (только для задач, не примечаний)
             else {
-              if (payload.eventType === 'UPDATE' && task.status === 'completed' && oldTask?.status !== 'completed') {
+              if (payload.eventType === 'UPDATE' && task.status === 'completed' && oldTask?.status !== 'completed' && task.action_type === 'task') {
                 const bartenderName = getUserName(task.assigned_to)
                 await createNotification(
                   user.id,

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Bell, CheckCheck, Trash2, ClipboardCheck, ClipboardList, Clock, ChevronRight } from 'lucide-react'
+import { X, Bell, CheckCheck, Trash2, ClipboardList, Clock, ChevronRight, StickyNote } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -36,6 +36,8 @@ export function NotificationPanel() {
         return <CheckCheck className="w-4 h-4 text-green-400" />
       case 'task_updated':
         return <Clock className="w-4 h-4 text-yellow-400" />
+      case 'note_created':
+        return <StickyNote className="w-4 h-4 text-purple-400" />
       default:
         return <Bell className="w-4 h-4 text-gray-400" />
     }

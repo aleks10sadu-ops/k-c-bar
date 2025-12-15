@@ -28,13 +28,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+// Select removed - using custom MultiSelectBartenders component
 import { DateTimePicker } from '@/components/calendar/DateTimePicker'
 import { cn } from '@/lib/utils'
 import type { ActionType, TaskType, NewTask, User as UserType } from '@/types/database'
@@ -46,6 +40,61 @@ interface CreateTaskModalProps {
   onSubmit: (task: NewTask) => void
   bartenders: UserType[]
   preselectedBartender?: string
+}
+
+// Компонент для множественного выбора барменов
+function MultiSelectBartenders({
+  bartenders,
+  selectedIds,
+  onChange,
+}: {
+  bartenders: UserType[]
+  selectedIds: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const toggleBartender = (id: string) => {
+    if (selectedIds.includes(id)) {
+      onChange(selectedIds.filter(i => i !== id))
+    } else {
+      onChange([...selectedIds, id])
+    }
+  }
+
+  return (
+    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+      {bartenders.map((bartender) => {
+        const isSelected = selectedIds.includes(bartender.id)
+        return (
+          <button
+            key={bartender.id}
+            type="button"
+            onClick={() => toggleBartender(bartender.id)}
+            className={cn(
+              "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+              isSelected 
+                ? "border-amber-500 bg-amber-500/10" 
+                : "border-gray-200 dark:border-gray-700 hover:bg-muted"
+            )}
+          >
+            <div className={cn(
+              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+              isSelected 
+                ? "border-amber-500 bg-amber-500" 
+                : "border-gray-300 dark:border-gray-600"
+            )}>
+              {isSelected && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <User className="w-4 h-4 text-muted-foreground" />
+            <span className="font-medium">{bartender.first_name} {bartender.last_name}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 const actionTypes: { value: ActionType; label: string; icon: React.ReactNode; description: string }[] = [
@@ -89,7 +138,9 @@ export function CreateTaskModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [taskSteps, setTaskSteps] = useState<string[]>([''])
-  const [assignedTo, setAssignedTo] = useState(preselectedBartender || '')
+  const [selectedBartenders, setSelectedBartenders] = useState<string[]>(
+    preselectedBartender ? [preselectedBartender] : []
+  )
   const [dueDate, setDueDate] = useState(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [file, setFile] = useState<File | null>(null)
@@ -104,7 +155,7 @@ export function CreateTaskModal({
     setTitle('')
     setDescription('')
     setTaskSteps([''])
-    setAssignedTo(preselectedBartender || '')
+    setSelectedBartenders(preselectedBartender ? [preselectedBartender] : [])
     setDueDate(new Date())
     setShowDatePicker(false)
     setFile(null)
@@ -198,29 +249,32 @@ export function CreateTaskModal({
   }
 
   const handleSubmitTask = async () => {
-    if (!title.trim() || !assignedTo) return
+    if (!title.trim() || selectedBartenders.length === 0) return
     
     hapticFeedback('success')
     
     const filteredSteps = taskSteps.filter(s => s.trim())
     
-    const newTask: NewTask = {
-      title: title.trim(),
-      description: null,
-      action_type: 'task',
-      task_type: taskType,
-      due_date: dueDate.toISOString(),
-      assigned_to: assignedTo,
-      created_by: '',
-      steps: filteredSteps.length > 0 ? filteredSteps : null,
+    // Создаём задачу для каждого выбранного бармена
+    for (const bartenderId of selectedBartenders) {
+      const newTask: NewTask = {
+        title: title.trim(),
+        description: null,
+        action_type: 'task',
+        task_type: taskType,
+        due_date: dueDate.toISOString(),
+        assigned_to: bartenderId,
+        created_by: '',
+        steps: filteredSteps.length > 0 ? filteredSteps : null,
+      }
+      onSubmit(newTask)
     }
 
-    onSubmit(newTask)
     handleClose()
   }
 
   const handleSubmitNote = async () => {
-    if (!assignedTo || !description.trim()) return
+    if (selectedBartenders.length === 0 || !description.trim()) return
     
     hapticFeedback('medium')
     
@@ -231,18 +285,21 @@ export function CreateTaskModal({
     
     hapticFeedback('success')
     
-    const newTask: NewTask = {
-      title: 'Примечание',
-      description: description.trim(),
-      action_type: 'note',
-      task_type: null,
-      due_date: null,
-      assigned_to: assignedTo,
-      created_by: '',
-      file_url: fileUrl,
+    // Создаём примечание для каждого выбранного бармена
+    for (const bartenderId of selectedBartenders) {
+      const newTask: NewTask = {
+        title: 'Примечание',
+        description: description.trim(),
+        action_type: 'note',
+        task_type: null,
+        due_date: null,
+        assigned_to: bartenderId,
+        created_by: '',
+        file_url: fileUrl,
+      }
+      onSubmit(newTask)
     }
 
-    onSubmit(newTask)
     handleClose()
   }
 
@@ -401,24 +458,18 @@ export function CreateTaskModal({
                 </div>
               </div>
 
-              {/* Исполнитель */}
+              {/* Исполнители */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Назначить</label>
-                <Select value={assignedTo} onValueChange={setAssignedTo}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите бармена" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bartenders.map((bartender) => (
-                      <SelectItem key={bartender.id} value={bartender.id}>
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          {bartender.first_name} {bartender.last_name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">
+                  Назначить {selectedBartenders.length > 0 && (
+                    <span className="text-amber-500">({selectedBartenders.length})</span>
+                  )}
+                </label>
+                <MultiSelectBartenders
+                  bartenders={bartenders}
+                  selectedIds={selectedBartenders}
+                  onChange={setSelectedBartenders}
+                />
               </div>
 
               {/* Дата и время */}
@@ -437,10 +488,10 @@ export function CreateTaskModal({
               <div className="pt-4">
                 <Button 
                   onClick={handleSubmitTask} 
-                  disabled={!title.trim() || !assignedTo}
+                  disabled={!title.trim() || selectedBartenders.length === 0}
                   className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                 >
-                  Создать задачу
+                  Создать задачу {selectedBartenders.length > 1 && `(${selectedBartenders.length})`}
                 </Button>
               </div>
             </motion.div>
@@ -513,29 +564,23 @@ export function CreateTaskModal({
 
               {/* Назначить */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Назначить</label>
-                <Select value={assignedTo} onValueChange={setAssignedTo}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите бармена" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bartenders.map((bartender) => (
-                      <SelectItem key={bartender.id} value={bartender.id}>
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          {bartender.first_name} {bartender.last_name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">
+                  Назначить {selectedBartenders.length > 0 && (
+                    <span className="text-purple-500">({selectedBartenders.length})</span>
+                  )}
+                </label>
+                <MultiSelectBartenders
+                  bartenders={bartenders}
+                  selectedIds={selectedBartenders}
+                  onChange={setSelectedBartenders}
+                />
               </div>
 
               {/* Кнопка создания */}
               <div className="pt-4">
                 <Button 
                   onClick={handleSubmitNote} 
-                  disabled={!description.trim() || !assignedTo || isUploading}
+                  disabled={!description.trim() || selectedBartenders.length === 0 || isUploading}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                 >
                   {isUploading ? (

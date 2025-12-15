@@ -181,6 +181,7 @@ export function BarTrackerApp() {
         onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
         assigneeName={selectedTaskFromNotification ? getBartenderName(selectedTaskFromNotification.assigned_to) : undefined}
         creatorName={selectedTaskFromNotification ? getCreatorName(selectedTaskFromNotification.created_by) : undefined}
+        isAdmin={isAdmin}
       />
     </div>
   )

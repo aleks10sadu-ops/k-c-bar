@@ -49,12 +49,9 @@ export function TasksView() {
       }
     }
 
-    // Сортировка по дате (задачи без даты в конце)
+    // Сортировка по дате создания (новые сверху)
     return result.sort((a, b) => {
-      if (!a.due_date && !b.due_date) return 0
-      if (!a.due_date) return 1
-      if (!b.due_date) return -1
-      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   }, [tasks, searchQuery, statusFilter, isAdmin, user?.id])
 
@@ -214,6 +211,7 @@ export function TasksView() {
         onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
         assigneeName={selectedTask ? getBartenderName(selectedTask.assigned_to) : undefined}
         creatorName={selectedTask ? getCreatorName(selectedTask.created_by) : undefined}
+        isAdmin={isAdmin}
       />
     </>
   )

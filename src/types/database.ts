@@ -64,6 +64,8 @@ export interface Database {
           completed_at: string | null
           file_url: string | null
           steps: string[] | null
+          result_text: string | null
+          result_file_url: string | null
           created_at: string
           updated_at: string
         }
@@ -80,6 +82,8 @@ export interface Database {
           completed_at?: string | null
           file_url?: string | null
           steps?: string[] | null
+          result_text?: string | null
+          result_file_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -96,6 +100,8 @@ export interface Database {
           completed_at?: string | null
           file_url?: string | null
           steps?: string[] | null
+          result_text?: string | null
+          result_file_url?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -14,7 +14,7 @@ interface TaskContextType {
   fetchBartenders: () => Promise<void>
   createTask: (task: NewTask) => Promise<Task | null>
   updateTask: (id: string, updates: UpdateTask) => Promise<boolean>
-  completeTask: (id: string) => Promise<boolean>
+  completeTask: (id: string, updates?: UpdateTask) => Promise<boolean>
   deleteTask: (id: string) => Promise<boolean>
   getTasksForUser: (userId: string) => Task[]
   getTasksForDate: (date: Date) => Task[]
@@ -55,6 +55,8 @@ const demoTasks: Task[] = [
     completed_at: null,
     file_url: null,
     steps: ['Проверить лёд', 'Подготовить гарниры', 'Разложить инструменты'],
+    result_text: null,
+    result_file_url: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -71,6 +73,8 @@ const demoTasks: Task[] = [
     completed_at: null,
     file_url: null,
     steps: ['Пересчитать виски', 'Пересчитать ром', 'Записать в журнал'],
+    result_text: null,
+    result_file_url: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -87,6 +91,8 @@ const demoTasks: Task[] = [
     completed_at: new Date(Date.now() - 1800000).toISOString(),
     file_url: null,
     steps: ['Проверить все сиропы', 'Отметить просроченные'],
+    result_text: 'Все сиропы проверены, 2 просроченных убраны',
+    result_file_url: null,
     created_at: new Date(Date.now() - 86400000).toISOString(),
     updated_at: new Date(Date.now() - 1800000).toISOString(),
   },
@@ -103,6 +109,8 @@ const demoTasks: Task[] = [
     completed_at: null,
     file_url: null,
     steps: null,
+    result_text: null,
+    result_file_url: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -160,6 +168,8 @@ function createTaskFromNew(newTask: NewTask, userId: string): Task {
     created_by: userId,
     completed_at: newTask.completed_at ?? null,
     file_url: newTask.file_url ?? null,
+    result_text: newTask.result_text ?? null,
+    result_file_url: newTask.result_file_url ?? null,
     created_at: newTask.created_at ?? now,
     updated_at: newTask.updated_at ?? now,
   }
@@ -428,10 +438,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchTasks])
 
-  const completeTask = useCallback(async (id: string): Promise<boolean> => {
+  const completeTask = useCallback(async (id: string, updates?: UpdateTask): Promise<boolean> => {
     return updateTask(id, {
       status: 'completed',
       completed_at: new Date().toISOString(),
+      ...updates,
     })
   }, [updateTask])
 
@@ -491,9 +502,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [tasks])
 
   const getStats = useCallback((userId?: string): TaskStats => {
+    // Исключаем примечания из статистики - считаем только задачи
+    const allTasks = tasks.filter(t => t.action_type === 'task')
     const filteredTasks = userId 
-      ? tasks.filter(t => t.assigned_to === userId)
-      : tasks
+      ? allTasks.filter(t => t.assigned_to === userId)
+      : allTasks
 
     const completed = filteredTasks.filter(t => t.status === 'completed')
     const pending = filteredTasks.filter(t => t.status === 'pending')
