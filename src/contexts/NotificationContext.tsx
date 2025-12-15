@@ -193,13 +193,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       // Отправляем уведомление в Telegram
       if (data) {
+        const notifData = data as DbNotification
         await sendTelegramNotification(userId, message)
         
         // Обновляем флаг sent_to_telegram
         await supabase
           .from('notifications')
           .update({ sent_to_telegram: true } as never)
-          .eq('id', data.id)
+          .eq('id', notifData.id)
       }
     } catch (err) {
       console.error('Failed to create notification:', err)
