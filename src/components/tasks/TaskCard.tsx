@@ -6,7 +6,6 @@ import {
   CheckCircle2, 
   Clock, 
   AlertTriangle, 
-  MessageSquare, 
   StickyNote, 
   ClipboardList,
   Trash2,
@@ -51,7 +50,6 @@ const taskTypeColors: Record<TaskType, string> = {
 
 const actionTypeIcons: Record<ActionType, React.ReactNode> = {
   task: <ClipboardList className="w-4 h-4" />,
-  chat: <MessageSquare className="w-4 h-4" />,
   note: <StickyNote className="w-4 h-4" />,
 }
 

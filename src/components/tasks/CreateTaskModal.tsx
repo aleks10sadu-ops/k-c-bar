@@ -6,10 +6,8 @@ import {
   X, 
   Calendar, 
   User, 
-  MessageSquare, 
   StickyNote, 
   ClipboardList,
-  Paperclip,
   ChevronRight,
   ChevronLeft,
   Plus,
@@ -17,7 +15,6 @@ import {
   Upload,
   FileText,
   Image as ImageIcon,
-  Send,
   Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -59,12 +56,6 @@ const actionTypes: { value: ActionType; label: string; icon: React.ReactNode; de
     description: 'Задание с шагами для выполнения'
   },
   { 
-    value: 'chat', 
-    label: 'Чат', 
-    icon: <MessageSquare className="w-5 h-5" />,
-    description: 'Написать сообщение в Telegram'
-  },
-  { 
     value: 'note', 
     label: 'Примечание', 
     icon: <StickyNote className="w-5 h-5" />,
@@ -97,14 +88,12 @@ export function CreateTaskModal({
   const [taskType, setTaskType] = useState<TaskType | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [message, setMessage] = useState('')
   const [taskSteps, setTaskSteps] = useState<string[]>([''])
   const [assignedTo, setAssignedTo] = useState(preselectedBartender || '')
   const [dueDate, setDueDate] = useState(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [isSendingMessage, setIsSendingMessage] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -114,14 +103,12 @@ export function CreateTaskModal({
     setTaskType(null)
     setTitle('')
     setDescription('')
-    setMessage('')
     setTaskSteps([''])
     setAssignedTo(preselectedBartender || '')
     setDueDate(new Date())
     setShowDatePicker(false)
     setFile(null)
     setIsUploading(false)
-    setIsSendingMessage(false)
   }
 
   const handleClose = () => {
@@ -193,33 +180,6 @@ export function CreateTaskModal({
     }
   }
 
-  const sendTelegramMessage = async () => {
-    if (!assignedTo || !message.trim()) return false
-    
-    setIsSendingMessage(true)
-    try {
-      const response = await fetch('/api/telegram/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bartenderId: assignedTo,
-          message: message.trim(),
-        }),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to send message')
-      }
-      
-      return true
-    } catch (err) {
-      console.error('Failed to send Telegram message:', err)
-      return false
-    } finally {
-      setIsSendingMessage(false)
-    }
-  }
-
   const handleSubmitTask = async () => {
     if (!title.trim() || !assignedTo) return
     
@@ -240,34 +200,6 @@ export function CreateTaskModal({
 
     onSubmit(newTask)
     handleClose()
-  }
-
-  const handleSubmitChat = async () => {
-    if (!assignedTo || !message.trim()) return
-    
-    hapticFeedback('medium')
-    
-    const success = await sendTelegramMessage()
-    
-    if (success) {
-      hapticFeedback('success')
-      // Создаём запись в истории
-      const newTask: NewTask = {
-        title: `Сообщение в чат`,
-        description: message.trim(),
-        action_type: 'chat',
-        task_type: null,
-        due_date: null,
-        assigned_to: assignedTo,
-        created_by: '',
-        status: 'completed',
-      }
-      onSubmit(newTask)
-      handleClose()
-    } else {
-      hapticFeedback('error')
-      alert('Не удалось отправить сообщение. Проверьте настройки бота.')
-    }
   }
 
   const handleSubmitNote = async () => {
@@ -303,13 +235,10 @@ export function CreateTaskModal({
     
     switch (actionType) {
       case 'task': return 'Новая задача'
-      case 'chat': return 'Написать в чат'
       case 'note': return 'Новое примечание'
       default: return 'Детали'
     }
   }
-
-  const selectedBartender = bartenders.find(b => b.id === assignedTo)
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -495,78 +424,6 @@ export function CreateTaskModal({
                   className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                 >
                   Создать задачу
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Форма ЧАТА */}
-          {step === 'details' && actionType === 'chat' && (
-            <motion.div
-              key="chat-details"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="p-6 pt-4 space-y-4"
-            >
-              {/* Выбор бармена */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Кому отправить</label>
-                <Select value={assignedTo} onValueChange={setAssignedTo}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите бармена" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bartenders.map((bartender) => (
-                      <SelectItem key={bartender.id} value={bartender.id}>
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          {bartender.first_name} {bartender.last_name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Сообщение */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Сообщение</label>
-                <Textarea
-                  placeholder="Введите сообщение для отправки в Telegram..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="min-h-[150px] resize-none"
-                  autoFocus
-                />
-              </div>
-
-              {selectedBartender && (
-                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    💬 Сообщение будет отправлено <strong>{selectedBartender.first_name}</strong> в личные сообщения Telegram
-                  </p>
-                </div>
-              )}
-
-              {/* Кнопка отправки */}
-              <div className="pt-4">
-                <Button 
-                  onClick={handleSubmitChat} 
-                  disabled={!message.trim() || !assignedTo || isSendingMessage}
-                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-                >
-                  {isSendingMessage ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Отправка...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Отправить
-                    </>
-                  )}
                 </Button>
               </div>
             </motion.div>

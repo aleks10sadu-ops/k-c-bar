@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, User, Save, LogOut, Shield, Coffee } from 'lucide-react'
+import { X, User, Save, Shield, Coffee } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +20,7 @@ const hasSupabase = typeof process !== 'undefined' &&
                     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
-  const { user, isAdmin, logout } = useAuth()
+  const { user, isAdmin, refreshUser } = useAuth()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -44,7 +44,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         const { createClient } = await import('@/lib/supabase/client')
         const supabase = createClient()
         
-        await supabase
+        const { error } = await supabase
           .from('users')
           .update({
             first_name: firstName.trim(),
@@ -52,20 +52,23 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             updated_at: new Date().toISOString(),
           } as never)
           .eq('id', user.id)
+
+        if (!error) {
+          // Обновляем данные пользователя в контексте
+          await refreshUser()
+        }
       }
 
       setSaveSuccess(true)
-      setTimeout(() => setSaveSuccess(false), 2000)
+      setTimeout(() => {
+        setSaveSuccess(false)
+        onClose()
+      }, 1500)
     } catch (err) {
       console.error('Error updating profile:', err)
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const handleLogout = () => {
-    logout()
-    onClose()
   }
 
   if (!user) return null
@@ -170,8 +173,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
               </div>
 
-              {/* Кнопки */}
-              <div className="flex flex-col gap-3 mt-6">
+              {/* Кнопка сохранения */}
+              <div className="mt-6">
                 <Button
                   onClick={handleSave}
                   disabled={isSaving || !firstName.trim()}
@@ -207,15 +210,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     </span>
                   )}
                 </Button>
-
-                <Button
-                  variant="ghost"
-                  onClick={handleLogout}
-                  className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Выйти
-                </Button>
               </div>
             </div>
           </motion.div>
@@ -224,4 +218,3 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     </AnimatePresence>
   )
 }
-

@@ -4,18 +4,17 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
 export async function POST(request: NextRequest) {
   try {
-    const { bartenderId, message } = await request.json()
+    const { userId, message } = await request.json()
 
-    if (!bartenderId || !message) {
+    if (!userId || !message) {
       return NextResponse.json(
-        { error: 'bartenderId and message are required' },
+        { error: 'userId and message are required' },
         { status: 400 }
       )
     }
 
     if (!TELEGRAM_BOT_TOKEN) {
-      console.warn('TELEGRAM_BOT_TOKEN not configured, skipping message send')
-      // В демо режиме просто возвращаем успех
+      console.warn('TELEGRAM_BOT_TOKEN not configured, skipping notification')
       return NextResponse.json({ success: true, demo: true })
     }
 
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Получаем данные пользователя
     const userResponse = await fetch(
-      `${supabaseUrl}/rest/v1/users?id=eq.${bartenderId}&select=telegram_id,first_name`,
+      `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=telegram_id,first_name`,
       {
         headers: {
           'apikey': supabaseKey,
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const telegramId = users[0].telegram_id
 
-    // Отправляем сообщение через Telegram Bot API
+    // Отправляем уведомление через Telegram Bot API
     const telegramResponse = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
       {
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: telegramId,
-          text: message,
+          text: `🍸 Bar Tracker\n\n${message}`,
           parse_mode: 'HTML',
         }),
       }
@@ -67,19 +66,14 @@ export async function POST(request: NextRequest) {
 
     if (!telegramResult.ok) {
       console.error('Telegram API error:', telegramResult)
-      return NextResponse.json(
-        { error: 'Failed to send Telegram message', details: telegramResult },
-        { status: 500 }
-      )
+      // Не возвращаем ошибку - уведомление в приложении всё равно будет показано
+      return NextResponse.json({ success: true, telegram: false })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, telegram: true })
   } catch (error) {
-    console.error('Error sending Telegram message:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('Error sending Telegram notification:', error)
+    return NextResponse.json({ success: true, telegram: false })
   }
 }
 

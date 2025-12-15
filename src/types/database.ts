@@ -7,9 +7,10 @@ export type Json =
   | Json[]
 
 export type TaskType = 'prepare' | 'check' | 'inventory' | 'execute'
-export type ActionType = 'task' | 'chat' | 'note'
+export type ActionType = 'task' | 'note'
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue'
 export type UserRole = 'admin' | 'bartender'
+export type NotificationType = 'task_created' | 'task_completed' | 'task_updated' | 'note_created'
 
 export interface Database {
   public: {
@@ -99,6 +100,44 @@ export interface Database {
           updated_at?: string
         }
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: NotificationType
+          title: string
+          message: string
+          task_id: string | null
+          from_user_id: string | null
+          read: boolean
+          sent_to_telegram: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: NotificationType
+          title: string
+          message: string
+          task_id?: string | null
+          from_user_id?: string | null
+          read?: boolean
+          sent_to_telegram?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: NotificationType
+          title?: string
+          message?: string
+          task_id?: string | null
+          from_user_id?: string | null
+          read?: boolean
+          sent_to_telegram?: boolean
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -119,4 +158,6 @@ export type User = Database['public']['Tables']['users']['Row']
 export type Task = Database['public']['Tables']['tasks']['Row']
 export type NewTask = Database['public']['Tables']['tasks']['Insert']
 export type UpdateTask = Database['public']['Tables']['tasks']['Update']
+export type Notification = Database['public']['Tables']['notifications']['Row']
+export type NewNotification = Database['public']['Tables']['notifications']['Insert']
 
