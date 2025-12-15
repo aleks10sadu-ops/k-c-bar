@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+@theme {
+  /* Цвета */
+  --color-background: oklch(99% 0.01 85);
+  --color-foreground: oklch(25% 0.02 50);
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(25% 0.02 50);
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(25% 0.02 50);
+  --color-primary: oklch(70% 0.18 55);
+  --color-primary-foreground: oklch(100% 0 0);
+  --color-secondary: oklch(95% 0.02 80);
+  --color-secondary-foreground: oklch(25% 0.02 50);
+  --color-muted: oklch(95% 0.01 80);
+  --color-muted-foreground: oklch(55% 0.02 50);
+  --color-accent: oklch(93% 0.03 80);
+  --color-accent-foreground: oklch(25% 0.02 50);
+  --color-destructive: oklch(60% 0.22 25);
+  --color-destructive-foreground: oklch(100% 0 0);
+  --color-border: oklch(90% 0.02 80);
+  --color-input: oklch(90% 0.02 80);
+  --color-ring: oklch(70% 0.18 55);
+
+  /* Радиус */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  /* Шрифты */
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+}
+
+/* Тёмная тема */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: oklch(12% 0 0);
+    --color-foreground: oklch(95% 0.01 80);
+    --color-card: oklch(15% 0 0);
+    --color-card-foreground: oklch(95% 0.01 80);
+    --color-popover: oklch(15% 0 0);
+    --color-popover-foreground: oklch(95% 0.01 80);
+    --color-primary: oklch(70% 0.18 55);
+    --color-primary-foreground: oklch(100% 0 0);
+    --color-secondary: oklch(20% 0 0);
+    --color-secondary-foreground: oklch(95% 0.01 80);
+    --color-muted: oklch(20% 0 0);
+    --color-muted-foreground: oklch(60% 0.01 50);
+    --color-accent: oklch(22% 0 0);
+    --color-accent-foreground: oklch(95% 0.01 80);
+    --color-destructive: oklch(55% 0.2 25);
+    --color-destructive-foreground: oklch(100% 0 0);
+    --color-border: oklch(22% 0 0);
+    --color-input: oklch(22% 0 0);
+    --color-ring: oklch(70% 0.18 55);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Safe area для устройств с вырезами */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Скролл */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--color-muted-foreground) 20%, transparent);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--color-muted-foreground) 30%, transparent);
+  }
+}
+
+/* Анимации */
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.2s ease-out;
+  }
+
+  .animate-out {
+    animation: animate-out 0.2s ease-in;
+  }
+
+  @keyframes animate-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes animate-out {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+
+  .fade-in-0 {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .fade-out-0 {
+    animation: fade-out 0.2s ease-in;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .slide-in-from-top-2 {
+    animation: slide-in-from-top 0.2s ease-out;
+  }
+
+  @keyframes slide-in-from-top {
+    from {
+      transform: translateY(-8px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .zoom-in-95 {
+    animation: zoom-in 0.2s ease-out;
+  }
+
+  .zoom-out-95 {
+    animation: zoom-out 0.2s ease-in;
+  }
+
+  @keyframes zoom-in {
+    from {
+      transform: scale(0.95);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes zoom-out {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(0.95);
+    }
+  }
+}
+
+/* Стили для мобильных */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+/* Убираем outline на мобильных */
+@media (pointer: coarse) {
+  *:focus {
+    outline: none;
+  }
+}
