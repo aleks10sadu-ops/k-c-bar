@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type TaskType = 'prepare' | 'check' | 'inventory' | 'execute'
+export type TaskType = 'prepare' | 'check' | 'execute'
 export type ActionType = 'task' | 'note'
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue'
 export type UserRole = 'admin' | 'bartender'

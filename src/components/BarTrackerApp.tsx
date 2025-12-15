@@ -74,6 +74,16 @@ export function BarTrackerApp() {
     return ''
   }
 
+  // Отмена выполнения задачи (вернуть в работу)
+  const handleUndoComplete = async (id: string) => {
+    await updateTask(id, {
+      status: 'in_progress',
+      completed_at: null,
+      result_text: null,
+      result_file_url: null,
+    })
+  }
+
   // Loading состояние
   if (authLoading) {
     return (
@@ -179,6 +189,7 @@ export function BarTrackerApp() {
         onClose={() => setSelectedTaskFromNotification(null)}
         onComplete={completeTask}
         onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
+        onUndoComplete={handleUndoComplete}
         assigneeName={selectedTaskFromNotification ? getBartenderName(selectedTaskFromNotification.assigned_to) : undefined}
         creatorName={selectedTaskFromNotification ? getCreatorName(selectedTaskFromNotification.created_by) : undefined}
         isAdmin={isAdmin}

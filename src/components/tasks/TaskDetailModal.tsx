@@ -16,7 +16,8 @@ import {
   Play,
   Upload,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Undo2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -38,6 +39,7 @@ interface TaskDetailModalProps {
   onClose: () => void
   onComplete?: (id: string, updates?: UpdateTask) => void
   onStartProgress?: (id: string) => void
+  onUndoComplete?: (id: string) => void
   assigneeName?: string
   creatorName?: string
   isAdmin?: boolean
@@ -46,14 +48,12 @@ interface TaskDetailModalProps {
 const taskTypeLabels: Record<TaskType, string> = {
   prepare: 'Подготовить',
   check: 'Проверить',
-  inventory: 'Инвентаризация',
   execute: 'Выполнить',
 }
 
 const taskTypeColors: Record<TaskType, string> = {
   prepare: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   check: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  inventory: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
   execute: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 }
 
@@ -86,6 +86,7 @@ export function TaskDetailModal({
   onClose,
   onComplete,
   onStartProgress,
+  onUndoComplete,
   assigneeName,
   creatorName,
   isAdmin = false
@@ -189,6 +190,11 @@ export function TaskDetailModal({
     }
   }
 
+  const handleUndoComplete = () => {
+    onUndoComplete?.(task.id)
+    onClose()
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -222,14 +228,28 @@ export function TaskDetailModal({
                   {task.action_type === 'task' ? 'Задача' : 'Примечание'}
                 </h2>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {/* Кнопка отмены выполнения для админа */}
+                {isAdmin && task.status === 'completed' && task.action_type === 'task' && onUndoComplete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleUndoComplete}
+                    className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                    title="Отменить выполнение"
+                  >
+                    <Undo2 className="w-5 h-5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Контент */}

@@ -115,7 +115,6 @@ const actionTypes: { value: ActionType; label: string; icon: React.ReactNode; de
 const taskTypes: { value: TaskType; label: string; color: string }[] = [
   { value: 'prepare', label: 'Подготовить', color: 'bg-blue-500' },
   { value: 'check', label: 'Проверить', color: 'bg-emerald-500' },
-  { value: 'inventory', label: 'Инвентаризация', color: 'bg-purple-500' },
   { value: 'execute', label: 'Выполнить', color: 'bg-amber-500' },
 ]
 

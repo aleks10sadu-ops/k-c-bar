@@ -65,7 +65,7 @@ const demoTasks: Task[] = [
     title: 'Инвентаризация алкоголя',
     description: null,
     action_type: 'task',
-    task_type: 'inventory',
+    task_type: 'check',
     status: 'in_progress',
     due_date: new Date(Date.now() + 7200000).toISOString(),
     assigned_to: 'bartender-2',

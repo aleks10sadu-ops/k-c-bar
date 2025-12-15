@@ -99,6 +99,16 @@ export function TasksView() {
     setSelectedTask(task)
   }
 
+  // Отмена выполнения задачи (вернуть в работу)
+  const handleUndoComplete = async (id: string) => {
+    await updateTask(id, {
+      status: 'in_progress',
+      completed_at: null,
+      result_text: null,
+      result_file_url: null,
+    })
+  }
+
   return (
     <>
       <div className="space-y-4 pb-24">
@@ -209,6 +219,7 @@ export function TasksView() {
         onClose={() => setSelectedTask(null)}
         onComplete={completeTask}
         onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
+        onUndoComplete={handleUndoComplete}
         assigneeName={selectedTask ? getBartenderName(selectedTask.assigned_to) : undefined}
         creatorName={selectedTask ? getCreatorName(selectedTask.created_by) : undefined}
         isAdmin={isAdmin}

@@ -37,14 +37,12 @@ interface TaskCardProps {
 const taskTypeLabels: Record<TaskType, string> = {
   prepare: 'Подготовить',
   check: 'Проверить',
-  inventory: 'Инвентаризация',
   execute: 'Выполнить',
 }
 
 const taskTypeColors: Record<TaskType, string> = {
   prepare: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   check: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  inventory: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
   execute: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 }
 
