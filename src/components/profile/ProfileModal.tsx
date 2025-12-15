@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, User, Save, Shield, Coffee } from 'lucide-react'
+import { X, User, Save, Shield, Coffee, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +26,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -81,6 +82,22 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
   }
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshUser()
+      // Обновляем локальные поля из обновлённого user
+      if (user) {
+        setFirstName(user.first_name || '')
+        setLastName(user.last_name || '')
+      }
+    } catch (err) {
+      console.error('Refresh error:', err)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   if (!user) return null
 
   const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`
@@ -112,14 +129,25 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <User className="w-5 h-5 text-amber-400" />
                 <h2 className="text-lg font-semibold text-white">Профиль</h2>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Контент */}
