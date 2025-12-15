@@ -91,7 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (existingUser) {
-        setUser(existingUser)
+        // Используем данные из Supabase (включая изменённое имя)
+        setUser(existingUser as User)
       } else {
         // Создаём нового пользователя (первый пользователь = админ)
         const { count } = await supabase
@@ -121,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        setUser(newUser)
+        setUser(newUser as User)
       }
 
       // Инициализируем Telegram WebApp
@@ -155,7 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (!fetchError && data) {
-        setUser(data)
+        const userData = data as User
+        setUser(userData)
       }
     } catch (err) {
       console.error('Refresh user error:', err)

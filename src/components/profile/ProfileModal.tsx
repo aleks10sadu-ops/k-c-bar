@@ -53,10 +53,13 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           } as never)
           .eq('id', user.id)
 
-        if (!error) {
-          // Обновляем данные пользователя в контексте
-          await refreshUser()
+        if (error) {
+          console.error('Error saving profile:', error)
+          return
         }
+
+        // Обновляем данные пользователя в контексте
+        await refreshUser()
       }
 
       setSaveSuccess(true)
