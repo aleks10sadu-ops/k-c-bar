@@ -64,7 +64,6 @@ export function Navigation({ activeItem, onNavigate, onCreateTask }: NavigationP
               className="relative -mt-6 w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white"
             >
               <Plus className="w-6 h-6" />
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 animate-ping opacity-20" />
             </motion.button>
           )}
 

@@ -11,6 +11,7 @@ interface AuthContextType {
   isAdmin: boolean
   error: string | null
   refreshUser: () => Promise<void>
+  logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -161,6 +162,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id])
 
+  const logout = useCallback(() => {
+    setUser(null)
+    setTelegramUser(null)
+    // Перезагружаем страницу для полного сброса
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  }, [])
+
   useEffect(() => {
     initializeUser()
   }, [initializeUser])
@@ -172,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: user?.role === 'admin',
     error,
     refreshUser,
+    logout,
   }
 
   return (

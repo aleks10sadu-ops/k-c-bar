@@ -9,9 +9,10 @@ import { TasksView } from '@/components/views/TasksView'
 import { TeamView } from '@/components/views/TeamView'
 import { StatsView } from '@/components/views/StatsView'
 import { CreateTaskModal } from '@/components/tasks/CreateTaskModal'
+import { NotificationPanel } from '@/components/notifications/NotificationPanel'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTasks } from '@/contexts/TaskContext'
-import { Loader2, Wine } from 'lucide-react'
+import { Wine } from 'lucide-react'
 import type { NewTask } from '@/types/database'
 
 type NavItem = 'home' | 'tasks' | 'team' | 'stats'
@@ -136,6 +137,9 @@ export function BarTrackerApp() {
         bartenders={bartenders}
         preselectedBartender={preselectedBartender}
       />
+
+      {/* Панель уведомлений */}
+      <NotificationPanel />
     </div>
   )
 }

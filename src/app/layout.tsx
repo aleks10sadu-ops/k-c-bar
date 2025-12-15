@@ -3,6 +3,7 @@ import { Space_Grotesk, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { TaskProvider } from "@/contexts/TaskContext"
+import { NotificationProvider } from "@/contexts/NotificationContext"
 import Script from "next/script"
 
 const spaceGrotesk = Space_Grotesk({
@@ -55,7 +56,9 @@ export default function RootLayout({
       <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <AuthProvider>
           <TaskProvider>
-            {children}
+            <NotificationProvider>
+              {children}
+            </NotificationProvider>
           </TaskProvider>
         </AuthProvider>
       </body>
