@@ -42,17 +42,20 @@ export function TasksView() {
     if (statusFilter !== 'all') {
       if (statusFilter === 'overdue') {
         result = result.filter(t => 
-          new Date(t.due_date) < new Date() && t.status !== 'completed'
+          t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
         )
       } else {
         result = result.filter(t => t.status === statusFilter)
       }
     }
 
-    // Сортировка по дате
-    return result.sort((a, b) => 
-      new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-    )
+    // Сортировка по дате (задачи без даты в конце)
+    return result.sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0
+      if (!a.due_date) return 1
+      if (!b.due_date) return -1
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+    })
   }, [tasks, searchQuery, statusFilter, isAdmin, user?.id])
 
   const getBartenderName = (id: string) => {
@@ -69,7 +72,7 @@ export function TasksView() {
       in_progress: userTasks.filter(t => t.status === 'in_progress').length,
       completed: userTasks.filter(t => t.status === 'completed').length,
       overdue: userTasks.filter(t => 
-        new Date(t.due_date) < new Date() && t.status !== 'completed'
+        t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
       ).length,
     }
   }, [tasks, isAdmin, user?.id])
