@@ -148,7 +148,13 @@ export function CreateTaskModal({
   }
 
   const uploadFile = async (): Promise<string | null> => {
-    if (!file || !hasSupabase) return null
+    if (!file) return null
+    
+    // В демо режиме без Supabase возвращаем фейковый URL
+    if (!hasSupabase) {
+      console.log('Demo mode: file upload simulated')
+      return `https://demo.supabase.co/storage/v1/object/public/attachments/${file.name}`
+    }
     
     setIsUploading(true)
     try {
@@ -158,22 +164,33 @@ export function CreateTaskModal({
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`
       
+      console.log('Uploading file:', fileName)
+      
       const { data, error } = await supabase.storage
         .from('attachments')
-        .upload(fileName, file)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
       
       if (error) {
-        console.error('Upload error:', error)
+        console.error('Upload error:', error.message)
+        alert(`Ошибка загрузки файла: ${error.message}`)
         return null
       }
+      
+      console.log('Upload success:', data)
       
       const { data: urlData } = supabase.storage
         .from('attachments')
         .getPublicUrl(fileName)
       
+      console.log('Public URL:', urlData.publicUrl)
+      
       return urlData.publicUrl
     } catch (err) {
       console.error('Upload failed:', err)
+      alert('Ошибка загрузки файла. Проверьте настройки Storage.')
       return null
     } finally {
       setIsUploading(false)
