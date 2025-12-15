@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Header } from '@/components/layout/Header'
 import { Navigation } from '@/components/layout/Navigation'
@@ -9,21 +9,36 @@ import { TasksView } from '@/components/views/TasksView'
 import { TeamView } from '@/components/views/TeamView'
 import { StatsView } from '@/components/views/StatsView'
 import { CreateTaskModal } from '@/components/tasks/CreateTaskModal'
+import { TaskDetailModal } from '@/components/tasks/TaskDetailModal'
 import { NotificationPanel } from '@/components/notifications/NotificationPanel'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTasks } from '@/contexts/TaskContext'
+import { useNotifications } from '@/contexts/NotificationContext'
 import { Wine } from 'lucide-react'
-import type { NewTask } from '@/types/database'
+import type { NewTask, Task } from '@/types/database'
 
 type NavItem = 'home' | 'tasks' | 'team' | 'stats'
 
 export function BarTrackerApp() {
   const { user, isLoading: authLoading, isAdmin } = useAuth()
-  const { bartenders, createTask, isLoading: tasksLoading } = useTasks()
+  const { tasks, bartenders, createTask, completeTask, updateTask, isLoading: tasksLoading } = useTasks()
+  const { pendingTaskId, clearPendingTask } = useNotifications()
 
   const [activeNav, setActiveNav] = useState<NavItem>('home')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [preselectedBartender, setPreselectedBartender] = useState<string | undefined>()
+  const [selectedTaskFromNotification, setSelectedTaskFromNotification] = useState<Task | null>(null)
+
+  // Обработка открытия задачи из уведомления
+  useEffect(() => {
+    if (pendingTaskId) {
+      const task = tasks.find(t => t.id === pendingTaskId)
+      if (task) {
+        setSelectedTaskFromNotification(task)
+      }
+      clearPendingTask()
+    }
+  }, [pendingTaskId, tasks, clearPendingTask])
 
   const handleNavigate = (item: NavItem) => {
     setActiveNav(item)
@@ -41,6 +56,22 @@ export function BarTrackerApp() {
 
   const handleCreateTask = async (task: NewTask) => {
     await createTask(task)
+  }
+
+  const getBartenderName = (id: string) => {
+    const bartender = bartenders.find(b => b.id === id)
+    return bartender ? `${bartender.first_name} ${bartender.last_name || ''}`.trim() : ''
+  }
+
+  const getCreatorName = (id: string) => {
+    const creator = bartenders.find(b => b.id === id)
+    if (creator) {
+      return `${creator.first_name} ${creator.last_name || ''}`.trim()
+    }
+    if (user?.id === id) {
+      return `${user.first_name} ${user.last_name || ''}`.trim()
+    }
+    return ''
   }
 
   // Loading состояние
@@ -140,6 +171,17 @@ export function BarTrackerApp() {
 
       {/* Панель уведомлений */}
       <NotificationPanel />
+
+      {/* Модальное окно задачи из уведомления */}
+      <TaskDetailModal
+        task={selectedTaskFromNotification}
+        isOpen={!!selectedTaskFromNotification}
+        onClose={() => setSelectedTaskFromNotification(null)}
+        onComplete={completeTask}
+        onStartProgress={(id) => updateTask(id, { status: 'in_progress' })}
+        assigneeName={selectedTaskFromNotification ? getBartenderName(selectedTaskFromNotification.assigned_to) : undefined}
+        creatorName={selectedTaskFromNotification ? getCreatorName(selectedTaskFromNotification.created_by) : undefined}
+      />
     </div>
   )
 }

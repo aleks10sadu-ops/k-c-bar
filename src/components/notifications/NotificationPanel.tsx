@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Bell, CheckCheck, Trash2, ClipboardCheck, ClipboardList, Clock } from 'lucide-react'
+import { X, Bell, CheckCheck, Trash2, ClipboardCheck, ClipboardList, Clock, ChevronRight } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -15,8 +15,18 @@ export function NotificationPanel() {
     markAsRead, 
     markAllAsRead, 
     clearAll,
-    unreadCount 
+    unreadCount,
+    openTaskFromNotification
   } = useNotifications()
+
+  const handleNotificationClick = (notification: { id: string; taskId?: string }) => {
+    markAsRead(notification.id)
+    
+    // Если есть привязанная задача - открываем её
+    if (notification.taskId) {
+      openTaskFromNotification(notification.taskId)
+    }
+  }
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -128,8 +138,8 @@ export function NotificationPanel() {
                         notification.read 
                           ? 'bg-gray-900/50' 
                           : 'bg-gray-800/50 hover:bg-gray-800'
-                      }`}
-                      onClick={() => markAsRead(notification.id)}
+                      } ${notification.taskId ? 'hover:bg-amber-900/20' : ''}`}
+                      onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-3">
                         <div className="mt-0.5">
@@ -155,6 +165,9 @@ export function NotificationPanel() {
                             {formatTime(notification.createdAt)}
                           </p>
                         </div>
+                        {notification.taskId && (
+                          <ChevronRight className="w-4 h-4 text-amber-400 flex-shrink-0 ml-2" />
+                        )}
                       </div>
                     </motion.div>
                   ))}

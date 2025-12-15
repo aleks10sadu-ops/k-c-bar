@@ -25,6 +25,9 @@ interface NotificationContextType {
   markAsRead: (id: string) => void
   markAllAsRead: () => void
   clearAll: () => void
+  openTaskFromNotification: (taskId: string) => void
+  pendingTaskId: string | null
+  clearPendingTask: () => void
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -38,11 +41,21 @@ const hasSupabase = typeof process !== 'undefined' &&
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
   const { user, isAdmin } = useAuth()
   
   const channelRef = useRef<RealtimeChannel | null>(null)
   const notifChannelRef = useRef<RealtimeChannel | null>(null)
   const usersMapRef = useRef<Map<string, User>>(new Map())
+
+  const openTaskFromNotification = useCallback((taskId: string) => {
+    setPendingTaskId(taskId)
+    setIsOpen(false) // Закрываем панель уведомлений
+  }, [])
+
+  const clearPendingTask = useCallback(() => {
+    setPendingTaskId(null)
+  }, [])
 
   // Преобразуем DB Notification в локальный формат
   const dbToLocal = useCallback((dbNotif: DbNotification): Notification => {
@@ -355,6 +368,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     markAsRead,
     markAllAsRead,
     clearAll,
+    openTaskFromNotification,
+    pendingTaskId,
+    clearPendingTask,
   }
 
   return (
