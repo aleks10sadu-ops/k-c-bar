@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useAuth } from './AuthContext'
-import type { Task, NewTask, UpdateTask, User } from '@/types/database'
+import type { Task, NewTask, UpdateTask, User, TaskStatus } from '@/types/database'
 
 interface TaskContextType {
   tasks: Task[]
@@ -139,6 +139,26 @@ const demoBartenders: User[] = [
   },
 ]
 
+// Хелпер для создания полного Task объекта из NewTask
+function createTaskFromNew(newTask: NewTask, userId: string): Task {
+  const now = new Date().toISOString()
+  return {
+    id: `demo-${Date.now()}`,
+    title: newTask.title,
+    description: newTask.description ?? null,
+    action_type: newTask.action_type,
+    task_type: newTask.task_type ?? null,
+    status: (newTask.status ?? 'pending') as TaskStatus,
+    due_date: newTask.due_date,
+    assigned_to: newTask.assigned_to,
+    created_by: userId,
+    completed_at: newTask.completed_at ?? null,
+    file_url: newTask.file_url ?? null,
+    created_at: newTask.created_at ?? now,
+    updated_at: newTask.updated_at ?? now,
+  }
+}
+
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(demoTasks)
   const [bartenders, setBartenders] = useState<User[]>(demoBartenders)
@@ -212,23 +232,21 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     if (!user) return null
 
     try {
-      const taskData = {
-        ...newTask,
-        created_by: user.id,
-      }
-
       // Демо режим - создаём локально
       if (!hasSupabase) {
-        const demoTask: Task = {
-          id: `demo-${Date.now()}`,
-          ...taskData,
-          status: 'pending',
-          completed_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
+        const demoTask = createTaskFromNew(newTask, user.id)
         setTasks(prev => [...prev, demoTask])
         return demoTask
+      }
+
+      const taskData = {
+        title: newTask.title,
+        description: newTask.description ?? null,
+        action_type: newTask.action_type,
+        task_type: newTask.task_type ?? null,
+        due_date: newTask.due_date,
+        assigned_to: newTask.assigned_to,
+        created_by: user.id,
       }
 
       const { createClient } = await import('@/lib/supabase/client')
@@ -240,15 +258,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (insertError) {
-        // Демо режим - создаём локально
-        const demoTask: Task = {
-          id: `demo-${Date.now()}`,
-          ...taskData,
-          status: 'pending',
-          completed_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
+        console.warn('Insert error, using demo mode:', insertError.message)
+        // Fallback к демо режиму
+        const demoTask = createTaskFromNew(newTask, user.id)
         setTasks(prev => [...prev, demoTask])
         return demoTask
       }
