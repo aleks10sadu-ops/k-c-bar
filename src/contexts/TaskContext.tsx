@@ -1,8 +1,9 @@
 "use client"
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from './AuthContext'
 import type { Task, NewTask, UpdateTask, User, TaskStatus } from '@/types/database'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface TaskContextType {
   tasks: Task[]
@@ -166,6 +167,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   
   const { user, isAdmin } = useAuth()
+  
+  // Ref для хранения подписок realtime
+  const tasksChannelRef = useRef<RealtimeChannel | null>(null)
+  const usersChannelRef = useRef<RealtimeChannel | null>(null)
 
   const fetchTasks = useCallback(async () => {
     if (!user) return
@@ -228,6 +233,117 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAdmin])
 
+  // Настройка realtime подписок
+  useEffect(() => {
+    if (!user || !hasSupabase) return
+
+    let mounted = true
+
+    const setupRealtimeSubscriptions = async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+
+        // Подписка на изменения задач
+        const tasksChannel = supabase
+          .channel('tasks-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'tasks',
+            },
+            (payload) => {
+              if (!mounted) return
+              
+              console.log('Tasks realtime update:', payload.eventType)
+
+              if (payload.eventType === 'INSERT') {
+                const newTask = payload.new as Task
+                // Для бармена - добавляем только если задача назначена ему
+                if (isAdmin || newTask.assigned_to === user.id) {
+                  setTasks(prev => {
+                    // Проверяем, нет ли уже такой задачи
+                    if (prev.some(t => t.id === newTask.id)) return prev
+                    return [...prev, newTask]
+                  })
+                }
+              } else if (payload.eventType === 'UPDATE') {
+                const updatedTask = payload.new as Task
+                setTasks(prev => prev.map(t => 
+                  t.id === updatedTask.id ? updatedTask : t
+                ))
+              } else if (payload.eventType === 'DELETE') {
+                const deletedTask = payload.old as { id: string }
+                setTasks(prev => prev.filter(t => t.id !== deletedTask.id))
+              }
+            }
+          )
+          .subscribe()
+
+        tasksChannelRef.current = tasksChannel
+
+        // Подписка на изменения пользователей (для админа)
+        if (isAdmin) {
+          const usersChannel = supabase
+            .channel('users-changes')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'users',
+                filter: 'role=eq.bartender',
+              },
+              (payload) => {
+                if (!mounted) return
+                
+                console.log('Users realtime update:', payload.eventType)
+
+                if (payload.eventType === 'INSERT') {
+                  const newUser = payload.new as User
+                  setBartenders(prev => {
+                    if (prev.some(u => u.id === newUser.id)) return prev
+                    return [...prev, newUser]
+                  })
+                } else if (payload.eventType === 'UPDATE') {
+                  const updatedUser = payload.new as User
+                  setBartenders(prev => prev.map(u => 
+                    u.id === updatedUser.id ? updatedUser : u
+                  ))
+                } else if (payload.eventType === 'DELETE') {
+                  const deletedUser = payload.old as { id: string }
+                  setBartenders(prev => prev.filter(u => u.id !== deletedUser.id))
+                }
+              }
+            )
+            .subscribe()
+
+          usersChannelRef.current = usersChannel
+        }
+      } catch (err) {
+        console.error('Realtime subscription error:', err)
+      }
+    }
+
+    setupRealtimeSubscriptions()
+
+    // Cleanup при размонтировании
+    return () => {
+      mounted = false
+      
+      if (tasksChannelRef.current) {
+        tasksChannelRef.current.unsubscribe()
+        tasksChannelRef.current = null
+      }
+      if (usersChannelRef.current) {
+        usersChannelRef.current.unsubscribe()
+        usersChannelRef.current = null
+      }
+    }
+  }, [user, isAdmin])
+
   const createTask = useCallback(async (newTask: NewTask): Promise<Task | null> => {
     if (!user) return null
 
@@ -265,12 +381,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         return demoTask
       }
 
-      if (data) {
-        setTasks(prev => [...prev, data])
-        return data
-      }
-
-      return null
+      // Не добавляем вручную - realtime подписка сделает это
+      return data
     } catch (err) {
       console.error('Create task error:', err)
       setError('Ошибка создания задачи')
@@ -280,7 +392,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(async (id: string, updates: UpdateTask): Promise<boolean> => {
     try {
-      // Всегда обновляем локально
+      // Оптимистичное обновление для мгновенного UI отклика
       setTasks(prev => prev.map(t => 
         t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
       ))
@@ -295,7 +407,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         .eq('id', id)
 
       if (updateError) {
-        console.warn('Update error (demo mode):', updateError.message)
+        console.warn('Update error:', updateError.message)
+        // Откатываем оптимистичное обновление при ошибке
+        await fetchTasks()
+        return false
       }
 
       return true
@@ -304,7 +419,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setError('Ошибка обновления задачи')
       return false
     }
-  }, [])
+  }, [fetchTasks])
 
   const completeTask = useCallback(async (id: string): Promise<boolean> => {
     return updateTask(id, {
@@ -315,7 +430,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTask = useCallback(async (id: string): Promise<boolean> => {
     try {
-      // Всегда удаляем локально
+      // Оптимистичное удаление
       setTasks(prev => prev.filter(t => t.id !== id))
 
       if (!hasSupabase) return true
@@ -328,7 +443,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         .eq('id', id)
 
       if (deleteError) {
-        console.warn('Delete error (demo mode):', deleteError.message)
+        console.warn('Delete error:', deleteError.message)
+        // Откатываем при ошибке
+        await fetchTasks()
+        return false
       }
 
       return true
@@ -337,7 +455,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setError('Ошибка удаления задачи')
       return false
     }
-  }, [])
+  }, [fetchTasks])
 
   const getTasksForUser = useCallback((userId: string): Task[] => {
     return tasks.filter(t => t.assigned_to === userId)
@@ -403,6 +521,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tasks])
 
+  // Первоначальная загрузка данных
   useEffect(() => {
     if (user) {
       fetchTasks()
