@@ -155,7 +155,7 @@ function createTaskFromNew(newTask: NewTask, userId: string): Task {
     task_type: newTask.task_type ?? null,
     status: (newTask.status ?? 'pending') as TaskStatus,
     steps: newTask.steps ?? null,
-    due_date: newTask.due_date,
+    due_date: newTask.due_date ?? null,
     assigned_to: newTask.assigned_to,
     created_by: userId,
     completed_at: newTask.completed_at ?? null,
