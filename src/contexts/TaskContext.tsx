@@ -2,20 +2,31 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from './AuthContext'
-import type { Task, NewTask, UpdateTask, User, TaskStatus } from '@/types/database'
+import type {
+  Task, NewTask, UpdateTask, User, TaskStatus,
+  TaskTemplate, NewTaskTemplate, UpdateTaskTemplate,
+  TaskTemplateItem, NewTaskTemplateItem, UpdateTaskTemplateItem
+} from '@/types/database'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface TaskContextType {
   tasks: Task[]
   bartenders: User[]
+  taskTemplates: TaskTemplate[]
   isLoading: boolean
   error: string | null
   fetchTasks: () => Promise<void>
   fetchBartenders: () => Promise<void>
+  fetchTaskTemplates: () => Promise<void>
   createTask: (task: NewTask) => Promise<Task | null>
   updateTask: (id: string, updates: UpdateTask) => Promise<boolean>
   completeTask: (id: string, updates?: UpdateTask) => Promise<boolean>
   deleteTask: (id: string) => Promise<boolean>
+  createTaskTemplate: (template: NewTaskTemplate, items: NewTaskTemplateItem[]) => Promise<TaskTemplate | null>
+  updateTaskTemplate: (id: string, updates: UpdateTaskTemplate) => Promise<boolean>
+  deleteTaskTemplate: (id: string) => Promise<boolean>
+  getTaskTemplateItems: (templateId: string) => TaskTemplateItem[]
+  createTasksFromTemplate: (templateId: string, assignedTo: string[], taskDates?: {[taskId: string]: Date}) => Promise<Task[]>
   getTasksForUser: (userId: string) => Task[]
   getTasksForDate: (date: Date) => Task[]
   getOverdueTasks: () => Task[]
@@ -97,6 +108,42 @@ const demoTasks: Task[] = [
     updated_at: new Date(Date.now() - 1800000).toISOString(),
   },
   {
+    id: '5',
+    title: 'Срочно подготовить VIP-зал',
+    description: null,
+    action_type: 'task',
+    task_type: 'urgent',
+    status: 'pending',
+    due_date: new Date(Date.now() + 1800000).toISOString(),
+    assigned_to: 'bartender-1',
+    created_by: 'demo-user',
+    completed_at: null,
+    file_url: null,
+    steps: ['Убрать и протереть столы', 'Проверить освещение', 'Подготовить премиум напитки'],
+    result_text: null,
+    result_file_url: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '6',
+    title: 'Ежедневная уборка бара',
+    description: null,
+    action_type: 'task',
+    task_type: 'normal',
+    status: 'pending',
+    due_date: new Date(Date.now() + 86400000).toISOString(),
+    assigned_to: 'bartender-2',
+    created_by: 'demo-user',
+    completed_at: null,
+    file_url: null,
+    steps: ['Протереть барную стойку', 'Вымыть бокалы', 'Убрать мусор'],
+    result_text: null,
+    result_file_url: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
     id: '4',
     title: 'Примечание',
     description: 'Ознакомьтесь с обновлённым меню коктейлей на эту неделю',
@@ -175,9 +222,64 @@ function createTaskFromNew(newTask: NewTask, userId: string): Task {
   }
 }
 
+// Демо шаблоны для разработки
+const demoTaskTemplates: TaskTemplate[] = [
+  {
+    id: 'template-1',
+    name: 'Открытие бара',
+    description: 'Стандартные задачи для открытия бара',
+    created_by: 'bartender-1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'template-2',
+    name: 'Закрытие бара',
+    description: 'Задачи для закрытия бара',
+    created_by: 'bartender-2',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
+// Демо элементы шаблонов
+const demoTaskTemplateItems: TaskTemplateItem[] = [
+  {
+    id: 'item-1',
+    template_id: 'template-1',
+    title: 'Подготовить барную станцию',
+    description: 'Проверить готовность рабочего места',
+    task_type: 'prepare',
+    steps: ['Проверить лёд', 'Подготовить гарниры', 'Разложить инструменты'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'item-2',
+    template_id: 'template-1',
+    title: 'Проверить оборудование',
+    description: 'Убедиться что всё оборудование работает',
+    task_type: 'check',
+    steps: ['Проверить кофемашину', 'Проверить кассу', 'Проверить освещение'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'item-3',
+    template_id: 'template-2',
+    title: 'Убрать барную станцию',
+    description: 'Привести бар в порядок перед закрытием',
+    task_type: 'normal',
+    steps: ['Убрать грязную посуду', 'Протереть поверхности', 'Выключить оборудование'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(demoTasks)
   const [bartenders, setBartenders] = useState<User[]>(demoBartenders)
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>(demoTaskTemplates)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -247,6 +349,30 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       console.error('Fetch bartenders error:', err)
     }
   }, [isAdmin])
+
+  const fetchTaskTemplates = useCallback(async () => {
+    if (!hasSupabase) return // Используем демо данные
+
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data, error: fetchError } = await supabase
+        .from('task_templates')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (fetchError) {
+        console.warn('Using demo task templates:', fetchError.message)
+        return
+      }
+
+      if (data) {
+        setTaskTemplates(data)
+      }
+    } catch (err) {
+      console.error('Fetch task templates error:', err)
+    }
+  }, [])
 
   // Настройка realtime подписок
   useEffect(() => {
@@ -407,6 +533,175 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user])
 
+  const createTaskTemplate = useCallback(async (template: NewTaskTemplate, items: NewTaskTemplateItem[]): Promise<TaskTemplate | null> => {
+    if (!user) return null
+
+    try {
+      // Демо режим - создаём локально
+      if (!hasSupabase) {
+        const demoTemplate: TaskTemplate = {
+          id: `demo-template-${Date.now()}`,
+          name: template.name,
+          description: template.description ?? null,
+          created_by: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        setTaskTemplates(prev => [...prev, demoTemplate])
+        return demoTemplate
+      }
+
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+
+      // Создаём шаблон
+      const templateData = {
+        name: template.name,
+        description: template.description ?? null,
+        created_by: user.id,
+      }
+
+      const { data: templateResult, error: templateError } = await supabase
+        .from('task_templates')
+        .insert(templateData as never)
+        .select()
+        .single()
+
+      if (templateError) {
+        console.warn('Template insert error, using demo mode:', templateError.message)
+        const demoTemplate: TaskTemplate = {
+          id: `demo-template-${Date.now()}`,
+          name: template.name,
+          description: template.description ?? null,
+          created_by: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        setTaskTemplates(prev => [...prev, demoTemplate])
+        return demoTemplate
+      }
+
+      // Создаём элементы шаблона
+      if (items.length > 0) {
+        const itemsData = items.map(item => ({
+          template_id: templateResult.id,
+          title: item.title,
+          description: item.description ?? null,
+          task_type: item.task_type ?? null,
+          steps: item.steps ?? null,
+        }))
+
+        const { error: itemsError } = await supabase
+          .from('task_template_items')
+          .insert(itemsData as never)
+
+        if (itemsError) {
+          console.warn('Template items insert error:', itemsError.message)
+        }
+      }
+
+      return templateResult
+    } catch (err) {
+      console.error('Create task template error:', err)
+      setError('Ошибка создания шаблона')
+      return null
+    }
+  }, [user])
+
+  const updateTaskTemplate = useCallback(async (id: string, updates: UpdateTaskTemplate): Promise<boolean> => {
+    try {
+      // Оптимистичное обновление
+      setTaskTemplates(prev => prev.map(t =>
+        t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+      ))
+
+      if (!hasSupabase) return true
+
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { error: updateError } = await supabase
+        .from('task_templates')
+        .update({ ...updates, updated_at: new Date().toISOString() } as never)
+        .eq('id', id)
+
+      if (updateError) {
+        console.warn('Update template error:', updateError.message)
+        await fetchTaskTemplates()
+        return false
+      }
+
+      return true
+    } catch (err) {
+      console.error('Update task template error:', err)
+      setError('Ошибка обновления шаблона')
+      return false
+    }
+  }, [fetchTaskTemplates])
+
+  const deleteTaskTemplate = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      // Оптимистичное удаление
+      setTaskTemplates(prev => prev.filter(t => t.id !== id))
+
+      if (!hasSupabase) return true
+
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { error: deleteError } = await supabase
+        .from('task_templates')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) {
+        console.warn('Delete template error:', deleteError.message)
+        await fetchTaskTemplates()
+        return false
+      }
+
+      return true
+    } catch (err) {
+      console.error('Delete task template error:', err)
+      setError('Ошибка удаления шаблона')
+      return false
+    }
+  }, [fetchTaskTemplates])
+
+  const getTaskTemplateItems = useCallback((templateId: string): TaskTemplateItem[] => {
+    return demoTaskTemplateItems.filter(item => item.template_id === templateId)
+  }, [])
+
+  const createTasksFromTemplate = useCallback(async (templateId: string, assignedTo: string[], taskDates?: {[taskId: string]: Date}): Promise<Task[]> => {
+    if (!user) return []
+
+    const template = taskTemplates.find(t => t.id === templateId)
+    if (!template) return []
+
+    const items = getTaskTemplateItems(templateId)
+    const createdTasks: Task[] = []
+
+    for (const item of items) {
+      for (const assignee of assignedTo) {
+        const newTask: NewTask = {
+          title: item.title,
+          description: item.description ?? null,
+          action_type: 'task',
+          task_type: item.task_type ?? null,
+          due_date: taskDates && taskDates[item.id] ? taskDates[item.id].toISOString() : null,
+          assigned_to: assignee,
+          created_by: user.id,
+          steps: item.steps ?? null,
+        }
+
+        const createdTask = await createTask(newTask)
+        if (createdTask) {
+          createdTasks.push(createdTask)
+        }
+      }
+    }
+
+    return createdTasks
+  }, [user, taskTemplates, getTaskTemplateItems, createTask])
+
   const updateTask = useCallback(async (id: string, updates: UpdateTask): Promise<boolean> => {
     try {
       // Оптимистичное обновление для мгновенного UI отклика
@@ -439,12 +734,19 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [fetchTasks])
 
   const completeTask = useCallback(async (id: string, updates?: UpdateTask): Promise<boolean> => {
+    // Найдём задачу, чтобы проверить срок выполнения
+    const task = tasks.find(t => t.id === id)
+    const now = new Date()
+
+    // Определяем статус: если задача выполняется после срока - overdue, иначе completed
+    const status = task?.due_date && new Date(task.due_date) < now ? 'overdue' : 'completed'
+
     return updateTask(id, {
-      status: 'completed',
+      status,
       completed_at: new Date().toISOString(),
       ...updates,
     })
-  }, [updateTask])
+  }, [updateTask, tasks])
 
   const deleteTask = useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -547,23 +849,31 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user) {
       fetchTasks()
+      fetchTaskTemplates()
       if (isAdmin) {
         fetchBartenders()
       }
     }
-  }, [user, isAdmin, fetchTasks, fetchBartenders])
+  }, [user, isAdmin, fetchTasks, fetchBartenders, fetchTaskTemplates])
 
   const value: TaskContextType = {
     tasks,
     bartenders,
+    taskTemplates,
     isLoading,
     error,
     fetchTasks,
     fetchBartenders,
+    fetchTaskTemplates,
     createTask,
     updateTask,
     completeTask,
     deleteTask,
+    createTaskTemplate,
+    updateTaskTemplate,
+    deleteTaskTemplate,
+    getTaskTemplateItems,
+    createTasksFromTemplate,
     getTasksForUser,
     getTasksForDate,
     getOverdueTasks,

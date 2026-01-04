@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type TaskType = 'prepare' | 'check' | 'execute'
+export type TaskType = 'prepare' | 'check' | 'urgent' | 'normal'
 export type ActionType = 'task' | 'note'
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue'
 export type UserRole = 'admin' | 'bartender'
@@ -166,4 +166,16 @@ export type NewTask = Database['public']['Tables']['tasks']['Insert']
 export type UpdateTask = Database['public']['Tables']['tasks']['Update']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type NewNotification = Database['public']['Tables']['notifications']['Insert']
+export type TaskTemplate = Database['public']['Tables']['task_templates']['Row']
+export type NewTaskTemplate = Database['public']['Tables']['task_templates']['Insert']
+export type UpdateTaskTemplate = Database['public']['Tables']['task_templates']['Update']
+export type TaskTemplateItem = Database['public']['Tables']['task_template_items']['Row'] & {
+  due_date?: string | null
+}
+export type NewTaskTemplateItem = Database['public']['Tables']['task_template_items']['Insert'] & {
+  due_date?: string | null
+}
+export type UpdateTaskTemplateItem = Database['public']['Tables']['task_template_items']['Update'] & {
+  due_date?: string | null
+}
 

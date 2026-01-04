@@ -2,12 +2,13 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { 
-  Home, 
-  Users, 
-  BarChart3, 
+import {
+  Home,
+  Users,
+  BarChart3,
   Plus,
-  ClipboardList
+  ClipboardList,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -19,9 +20,10 @@ interface NavigationProps {
   activeItem: NavItem
   onNavigate: (item: NavItem) => void
   onCreateTask: () => void
+  onOpenTemplates?: () => void
 }
 
-export function Navigation({ activeItem, onNavigate, onCreateTask }: NavigationProps) {
+export function Navigation({ activeItem, onNavigate, onCreateTask, onOpenTemplates }: NavigationProps) {
   const { isAdmin } = useAuth()
 
   const handleNavigate = (item: NavItem) => {
@@ -32,6 +34,11 @@ export function Navigation({ activeItem, onNavigate, onCreateTask }: NavigationP
   const handleCreate = () => {
     hapticFeedback('medium')
     onCreateTask()
+  }
+
+  const handleOpenTemplates = () => {
+    hapticFeedback('medium')
+    onOpenTemplates?.()
   }
 
   const navItems = [
@@ -55,16 +62,27 @@ export function Navigation({ activeItem, onNavigate, onCreateTask }: NavigationP
             />
           ))}
 
-          {/* Кнопка создания */}
+          {/* Кнопки создания */}
           {isAdmin && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleCreate}
-              className="relative -mt-6 w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white"
-            >
-              <Plus className="w-6 h-6" />
-            </motion.button>
+            <div className="flex gap-2 -mt-6">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleOpenTemplates}
+                className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/30 flex items-center justify-center text-white"
+                title="Шаблоны задач"
+              >
+                <FileText className="w-6 h-6" />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCreate}
+                className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white"
+              >
+                <Plus className="w-6 h-6" />
+              </motion.button>
+            </div>
           )}
 
           {navItems.slice(2).map((item) => (

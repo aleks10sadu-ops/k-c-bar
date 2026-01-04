@@ -33,6 +33,7 @@ import { DateTimePicker } from '@/components/calendar/DateTimePicker'
 import { cn } from '@/lib/utils'
 import type { ActionType, TaskType, NewTask, User as UserType } from '@/types/database'
 import { hapticFeedback } from '@/lib/telegram'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface CreateTaskModalProps {
   isOpen: boolean
@@ -47,10 +48,12 @@ function MultiSelectBartenders({
   bartenders,
   selectedIds,
   onChange,
+  currentUser,
 }: {
   bartenders: UserType[]
   selectedIds: string[]
   onChange: (ids: string[]) => void
+  currentUser: UserType | null
 }) {
   const toggleBartender = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -60,8 +63,55 @@ function MultiSelectBartenders({
     }
   }
 
+  const handleSelfAssign = () => {
+    if (currentUser) {
+      toggleBartender(currentUser.id)
+    }
+  }
+
+  const isSelfSelected = currentUser && selectedIds.includes(currentUser.id)
+
   return (
     <div className="space-y-2 max-h-[200px] overflow-y-auto">
+      {/* Опция "Себе" */}
+      {currentUser && (
+        <button
+          type="button"
+          onClick={handleSelfAssign}
+          className={cn(
+            "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+            isSelfSelected
+              ? "border-amber-500 bg-amber-500/10"
+              : "border-gray-200 dark:border-gray-700 hover:bg-muted"
+          )}
+        >
+          <div className={cn(
+            "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+            isSelfSelected
+              ? "border-amber-500 bg-amber-500"
+              : "border-gray-300 dark:border-gray-600"
+          )}>
+            {isSelfSelected && (
+              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
+          <User className="w-4 h-4 text-muted-foreground" />
+          <span className="font-medium">Себе</span>
+        </button>
+      )}
+
+      {/* Разделитель */}
+      {currentUser && bartenders.length > 0 && (
+        <div className="flex items-center gap-2 my-2">
+          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+          <span className="text-xs text-muted-foreground px-2">Бармены</span>
+          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+        </div>
+      )}
+
+      {/* Список барменов */}
       {bartenders.map((bartender) => {
         const isSelected = selectedIds.includes(bartender.id)
         return (
@@ -71,15 +121,15 @@ function MultiSelectBartenders({
             onClick={() => toggleBartender(bartender.id)}
             className={cn(
               "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-              isSelected 
-                ? "border-amber-500 bg-amber-500/10" 
+              isSelected
+                ? "border-amber-500 bg-amber-500/10"
                 : "border-gray-200 dark:border-gray-700 hover:bg-muted"
             )}
           >
             <div className={cn(
               "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-              isSelected 
-                ? "border-amber-500 bg-amber-500" 
+              isSelected
+                ? "border-amber-500 bg-amber-500"
                 : "border-gray-300 dark:border-gray-600"
             )}>
               {isSelected && (
@@ -115,7 +165,8 @@ const actionTypes: { value: ActionType; label: string; icon: React.ReactNode; de
 const taskTypes: { value: TaskType; label: string; color: string }[] = [
   { value: 'prepare', label: 'Подготовить', color: 'bg-blue-500' },
   { value: 'check', label: 'Проверить', color: 'bg-emerald-500' },
-  { value: 'execute', label: 'Выполнить', color: 'bg-amber-500' },
+  { value: 'urgent', label: 'Срочно', color: 'bg-red-500' },
+  { value: 'normal', label: 'Не срочно', color: 'bg-gray-500' },
 ]
 
 // Проверяем наличие Supabase
@@ -124,13 +175,14 @@ const hasSupabase = typeof process !== 'undefined' &&
                     process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co' &&
                     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export function CreateTaskModal({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
+export function CreateTaskModal({
+  isOpen,
+  onClose,
+  onSubmit,
   bartenders,
-  preselectedBartender 
+  preselectedBartender
 }: CreateTaskModalProps) {
+  const { user } = useAuth()
   const [step, setStep] = useState<'type' | 'details' | 'datetime'>('type')
   const [actionType, setActionType] = useState<ActionType>('task')
   const [taskType, setTaskType] = useState<TaskType | null>(null)
@@ -468,6 +520,7 @@ export function CreateTaskModal({
                   bartenders={bartenders}
                   selectedIds={selectedBartenders}
                   onChange={setSelectedBartenders}
+                  currentUser={user}
                 />
               </div>
 
@@ -572,6 +625,7 @@ export function CreateTaskModal({
                   bartenders={bartenders}
                   selectedIds={selectedBartenders}
                   onChange={setSelectedBartenders}
+                  currentUser={user}
                 />
               </div>
 

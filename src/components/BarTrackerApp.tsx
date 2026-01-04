@@ -9,6 +9,7 @@ import { TasksView } from '@/components/views/TasksView'
 import { TeamView } from '@/components/views/TeamView'
 import { StatsView } from '@/components/views/StatsView'
 import { CreateTaskModal } from '@/components/tasks/CreateTaskModal'
+import { TaskTemplatesModal } from '@/components/tasks/TaskTemplatesModal'
 import { TaskDetailModal } from '@/components/tasks/TaskDetailModal'
 import { NotificationPanel } from '@/components/notifications/NotificationPanel'
 import { useAuth } from '@/contexts/AuthContext'
@@ -21,11 +22,12 @@ type NavItem = 'home' | 'tasks' | 'team' | 'stats'
 
 export function BarTrackerApp() {
   const { user, isLoading: authLoading, isAdmin } = useAuth()
-  const { tasks, bartenders, createTask, completeTask, updateTask, isLoading: tasksLoading } = useTasks()
+  const { tasks, bartenders, createTask, completeTask, updateTask, createTasksFromTemplate, isLoading: tasksLoading } = useTasks()
   const { pendingTaskId, clearPendingTask } = useNotifications()
 
   const [activeNav, setActiveNav] = useState<NavItem>('home')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
   const [preselectedBartender, setPreselectedBartender] = useState<string | undefined>()
   const [selectedTaskFromNotification, setSelectedTaskFromNotification] = useState<Task | null>(null)
 
@@ -56,6 +58,18 @@ export function BarTrackerApp() {
 
   const handleCreateTask = async (task: NewTask) => {
     await createTask(task)
+  }
+
+  const handleOpenTemplatesModal = () => {
+    setIsTemplatesModalOpen(true)
+  }
+
+  const handleCloseTemplatesModal = () => {
+    setIsTemplatesModalOpen(false)
+  }
+
+  const handleCreateTasksFromTemplate = async (templateId: string, assignedTo: string[], taskDates?: {[taskId: string]: Date}) => {
+    await createTasksFromTemplate(templateId, assignedTo, taskDates)
   }
 
   const getBartenderName = (id: string) => {
@@ -168,6 +182,7 @@ export function BarTrackerApp() {
         activeItem={activeNav}
         onNavigate={handleNavigate}
         onCreateTask={() => handleOpenCreateModal()}
+        onOpenTemplates={handleOpenTemplatesModal}
       />
 
       {/* Модальное окно создания задачи */}
@@ -177,6 +192,14 @@ export function BarTrackerApp() {
         onSubmit={handleCreateTask}
         bartenders={bartenders}
         preselectedBartender={preselectedBartender}
+      />
+
+      {/* Модальное окно шаблонов задач */}
+      <TaskTemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={handleCloseTemplatesModal}
+        onCreateTasksFromTemplate={handleCreateTasksFromTemplate}
+        bartenders={bartenders}
       />
 
       {/* Панель уведомлений */}
