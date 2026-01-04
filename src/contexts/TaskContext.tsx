@@ -578,17 +578,26 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
           updated_at: new Date().toISOString(),
         }
         setTaskTemplates(prev => [...prev, demoTemplate])
+
+        // Создаём элементы шаблона для демо
+        if (items.length > 0) {
+          // В демо режиме элементы не сохраняются в базу
+          console.log('Demo mode: template items not saved to database')
+        }
+
         return demoTemplate
       }
 
       // Создаём элементы шаблона
-      if (items.length > 0) {
+      if (items.length > 0 && templateResult) {
+        const result = templateResult as TaskTemplate
         const itemsData = items.map(item => ({
-          template_id: templateResult.id,
+          template_id: result.id,
           title: item.title,
           description: item.description ?? null,
           task_type: item.task_type ?? null,
           steps: item.steps ?? null,
+          due_date: item.due_date ?? null,
         }))
 
         const { error: itemsError } = await supabase
@@ -600,7 +609,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      return templateResult
+      return templateResult as TaskTemplate
     } catch (err) {
       console.error('Create task template error:', err)
       setError('Ошибка создания шаблона')

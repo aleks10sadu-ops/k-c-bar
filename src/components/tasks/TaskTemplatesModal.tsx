@@ -31,7 +31,8 @@ import type {
   TaskTemplateItem,
   NewTaskTemplate,
   NewTaskTemplateItem,
-  TaskType
+  TaskType,
+  User as UserType
 } from '@/types/database'
 import { useTasks } from '@/contexts/TaskContext'
 import { hapticFeedback } from '@/lib/telegram'
@@ -143,7 +144,7 @@ export function TaskTemplatesModal({
   const handleRemoveStep = (itemIndex: number, stepIndex: number) => {
     const newItems = [...templateItems]
     const item = newItems[itemIndex]
-    item.steps = item.steps?.filter((_, i) => i !== stepIndex) || []
+    item.steps = item.steps?.filter((_: string, i: number) => i !== stepIndex) || []
     setTemplateItems(newItems)
   }
 
@@ -167,7 +168,7 @@ export function TaskTemplatesModal({
         title: item.title.trim(),
         description: item.description?.trim() || null,
         task_type: item.task_type,
-        steps: item.steps?.filter(s => s.trim()) || null,
+        steps: item.steps?.filter((s: string) => s.trim()) || null,
         due_date: item.due_date,
       }))
 
@@ -499,7 +500,7 @@ export function TaskTemplatesModal({
                           </Button>
                         </div>
                         <div className="space-y-1">
-                          {(item.steps || []).map((step, stepIndex) => (
+                          {(item.steps || []).map((step: string, stepIndex: number) => (
                             <div key={stepIndex} className="flex gap-2">
                               <div className="w-4 h-6 flex items-center justify-center text-xs text-muted-foreground">
                                 {stepIndex + 1}.

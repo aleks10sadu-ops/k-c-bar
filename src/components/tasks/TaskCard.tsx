@@ -37,13 +37,15 @@ interface TaskCardProps {
 const taskTypeLabels: Record<TaskType, string> = {
   prepare: 'Подготовить',
   check: 'Проверить',
-  execute: 'Выполнить',
+  urgent: 'Срочно',
+  normal: 'Не срочно',
 }
 
 const taskTypeColors: Record<TaskType, string> = {
   prepare: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   check: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  execute: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  urgent: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  normal: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
 }
 
 const actionTypeIcons: Record<ActionType, React.ReactNode> = {

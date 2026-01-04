@@ -70,8 +70,8 @@ export function StatsView() {
     const types = {
       prepare: { label: 'Подготовить', count: 0, color: 'bg-blue-500' },
       check: { label: 'Проверить', count: 0, color: 'bg-emerald-500' },
-      inventory: { label: 'Инвентаризация', count: 0, color: 'bg-purple-500' },
-      execute: { label: 'Выполнить', count: 0, color: 'bg-amber-500' },
+      urgent: { label: 'Срочно', count: 0, color: 'bg-red-500' },
+      normal: { label: 'Не срочно', count: 0, color: 'bg-gray-500' },
     }
 
     tasks.forEach(t => {

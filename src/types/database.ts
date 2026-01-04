@@ -166,16 +166,55 @@ export type NewTask = Database['public']['Tables']['tasks']['Insert']
 export type UpdateTask = Database['public']['Tables']['tasks']['Update']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type NewNotification = Database['public']['Tables']['notifications']['Insert']
-export type TaskTemplate = Database['public']['Tables']['task_templates']['Row']
-export type NewTaskTemplate = Database['public']['Tables']['task_templates']['Insert']
-export type UpdateTaskTemplate = Database['public']['Tables']['task_templates']['Update']
-export type TaskTemplateItem = Database['public']['Tables']['task_template_items']['Row'] & {
+// Временные типы до выполнения миграции
+export interface TaskTemplate {
+  id: string
+  name: string
+  description: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface NewTaskTemplate {
+  name: string
+  description?: string | null
+  created_by?: string
+}
+
+export interface UpdateTaskTemplate {
+  name?: string
+  description?: string | null
+  updated_at?: string
+}
+
+export interface TaskTemplateItem {
+  id: string
+  template_id: string
+  title: string
+  description: string | null
+  task_type: TaskType | null
+  steps: string[] | null
+  due_date?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NewTaskTemplateItem {
+  template_id?: string
+  title: string
+  description?: string | null
+  task_type?: TaskType | null
+  steps?: string[] | null
   due_date?: string | null
 }
-export type NewTaskTemplateItem = Database['public']['Tables']['task_template_items']['Insert'] & {
+
+export interface UpdateTaskTemplateItem {
+  title?: string
+  description?: string | null
+  task_type?: TaskType | null
+  steps?: string[] | null
   due_date?: string | null
-}
-export type UpdateTaskTemplateItem = Database['public']['Tables']['task_template_items']['Update'] & {
-  due_date?: string | null
+  updated_at?: string
 }
 
